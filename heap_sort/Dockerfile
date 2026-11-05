@@ -8,16 +8,16 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# 시스템 의존성 및 pip 패키지 설치
+# pip 최신화 및 의존성 패키지 설치
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 소스코드 복사
 COPY algorithms.py main.py ./
 
-# Cloud Run 기본 포트 문서화
+# Cloud Run 기본 포트
 EXPOSE 8080
 
 # Cloud Run 환경변수 PORT를 주입받아 uvicorn 서버 실행
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
-
