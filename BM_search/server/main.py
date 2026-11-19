@@ -61,11 +61,13 @@ def read_root() -> Dict[str, Any]:
 
 
 @app.get("/health")
-def health_check() -> Dict[str, str]:
+def health_check() -> Dict[str, Any]:
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
     return {
         "status": "healthy",
         "service": "boyer-moore-search-engine",
         "version": "1.0.0",
+        "gemini_api_key_configured": bool(gemini_key),
     }
 
 
