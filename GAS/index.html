@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>미로탈출 알고리즘 랩 : BFS(Queue) vs DFS(Stack)</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0B0F19',
+              card: '#111827',
+              header: '#0F172A',
+              border: '#1F2937',
+              blue: '#3B82F6',
+              blueGlow: '#60A5FA',
+              emerald: '#10B981',
+              emeraldGlow: '#34D399',
+              amber: '#F59E0B',
+              rose: '#EF4444',
+              indigo: '#6366F1'
+            }
+          },
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+            mono: ['Fira Code', 'Consolas', 'Monaco', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0B0F19;
+      color: #F3F4F6;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+
+    .glass-header {
+      background: rgba(15, 23, 42, 0.86);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #1F2937;
+    }
+
+    .panel-card {
+      background: #111827;
+      border: 1px solid #1F2937;
+      box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+    }
+
+    .glow-blue {
+      box-shadow: 0 0 18px rgba(59, 130, 246, 0.22);
+    }
+
+    .glow-emerald {
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.22);
+    }
+
+    .maze-grid {
+      display: grid;
+      gap: 2px;
+      background: #0B0F19;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid #1F2937;
+      user-select: none;
+    }
+
+    .maze-cell {
+      aspect-ratio: 1 / 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Fira Code', monospace;
+      font-weight: 700;
+      font-size: 0.65rem;
+      transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+      position: relative;
+    }
+
+    .maze-cell.editable {
+      cursor: pointer;
+    }
+
+    .maze-cell.editable:hover {
+      outline: 1.5px solid #F59E0B;
+      z-index: 2;
+    }
+
+    .cell-wall {
+      background: linear-gradient(145deg, #1E293B, #0F172A);
+      border: 1px solid #1F2937;
+    }
+
+    .cell-open {
+      background: #131B2E;
+      border: 1px solid rgba(31, 41, 55, 0.55);
+    }
+
+    .cell-visited-bfs {
+      background: rgba(59, 130, 246, 0.28);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      color: #93C5FD;
+    }
+
+    .cell-visited-dfs {
+      background: rgba(16, 185, 129, 0.28);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      color: #6EE7B7;
+    }
+
+    .cell-frontier-bfs {
+      background: rgba(59, 130, 246, 0.55);
+      border: 1px solid #60A5FA;
+      box-shadow: inset 0 0 8px rgba(96, 165, 250, 0.55);
+      color: #EFF6FF;
+    }
+
+    .cell-frontier-dfs {
+      background: rgba(16, 185, 129, 0.55);
+      border: 1px solid #34D399;
+      box-shadow: inset 0 0 8px rgba(52, 211, 153, 0.55);
+      color: #ECFDF5;
+    }
+
+    .cell-path {
+      background: linear-gradient(135deg, #6366F1, #818CF8);
+      border: 1px solid #A5B4FC;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.65);
+      color: #FFFFFF;
+    }
+
+    .cell-current {
+      background: #F59E0B !important;
+      border: 1px solid #FDE68A !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85) !important;
+      color: #0B0F19 !important;
+      transform: scale(1.08);
+      z-index: 3;
+    }
+
+    .cell-backtrack {
+      background: #EF4444 !important;
+      border: 1px solid #FCA5A5 !important;
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.85) !important;
+      color: #FFFFFF !important;
+      transform: scale(1.06);
+      z-index: 3;
+    }
+
+    .cell-start {
+      outline: 2px solid #38BDF8;
+      outline-offset: -2px;
+    }
+
+    .cell-goal {
+      outline: 2px solid #F43F5E;
+      outline-offset: -2px;
+    }
+
+    .histogram-bar {
+      transition: height 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease;
+    }
+
+    .ds-scroll::-webkit-scrollbar {
+      height: 5px;
+    }
+    .ds-scroll::-webkit-scrollbar-track {
+      background: #0B0F19;
+    }
+    .ds-scroll::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- 1. Top Global Navigation -->
+  <header class="glass-header sticky top-0 z-40">
+    <div class="max-w-[1440px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand & Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-blue to-brand-emerald flex items-center justify-center font-mono font-bold text-sm text-white shadow-lg">
+          AX
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">
+              미로탈출 알고리즘 랩 : BFS vs DFS
+            </h1>
+            <span class="px-2 py-0.5 text-[11px] font-mono rounded-full bg-brand-blue/15 text-brand-blueGlow border border-brand-blue/30">
+              v1.0 Maze Lab
+            </span>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="connectionStatus" class="font-mono">백엔드 연결 확인 중...</span>
+            <button id="btnToggleBackendPanel" type="button" class="text-brand-blueGlow hover:underline ml-1">
+              [서버 설정]
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="presetSelect" class="bg-slate-900 border border-brand-border text-slate-200 text-xs sm:text-sm rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-brand-blue">
+          <option value="classic_branch">다중 분기 미로 (11×11)</option>
+          <option value="open_corridor">개방형 광장 미로 (11×11)</option>
+          <option value="dead_end_trap">막다른 길 함정 미로 (13×13)</option>
+          <option value="spiral_labyrinth">복합 미궁 (13×13)</option>
+        </select>
+
+        <button id="btnRandomMaze" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-200 transition">
+          랜덤 미로
+        </button>
+
+        <button id="btnEditMode" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-300 transition">
+          벽 편집: OFF
+        </button>
+
+        <div class="flex items-center gap-1.5 bg-slate-900/90 border border-brand-border rounded-lg px-2.5 py-1">
+          <span class="text-[11px] text-slate-400">속도</span>
+          <input id="speedRange" type="range" min="1" max="10" value="6" class="w-16 accent-brand-blue cursor-pointer" />
+          <span id="speedLabel" class="font-mono text-[11px] text-brand-blueGlow w-6 text-right">6x</span>
+        </div>
+
+        <button id="btnRun" type="button" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-blue hover:bg-blue-500 text-white shadow-md transition">
+          비교 실행 시작
+        </button>
+        <button id="btnPause" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-200 transition disabled:opacity-40" disabled>
+          일시 정지
+        </button>
+        <button id="btnStep" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-200 transition">
+          +1 Step
+        </button>
+        <button id="btnReset" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-900/50 border border-brand-border text-slate-300 transition">
+          초기화
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Backend Settings Bar -->
+    <div id="backendPanel" class="hidden border-t border-brand-border bg-slate-950/90">
+      <div class="max-w-[1440px] mx-auto px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-slate-400 font-mono">FastAPI URL (@main.py):</span>
+        <input id="backendUrlInput" type="text" placeholder="예: https://your-cloud-run.a.run.app 또는 http://localhost:8080" class="flex-1 min-w-[260px] bg-slate-900 border border-brand-border rounded-lg px-3 py-1.5 font-mono text-slate-200 focus:outline-none focus:border-brand-blue" />
+        <button id="btnSaveBackend" type="button" class="px-3 py-1.5 rounded-lg bg-brand-emerald hover:bg-emerald-500 text-slate-950 font-semibold transition">
+          연결 및 저장
+        </button>
+        <span class="text-slate-500">미연결 시 동일 알고리즘의 로컬 엔진으로 즉시 시연됩니다.</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 py-5 space-y-5">
+
+    <!-- 2. Overview & Theory Quick Reference -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="panel-card rounded-2xl p-4 border-l-4 border-l-brand-blue">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-brand-blue/20 text-brand-blueGlow">BFS</span>
+            <h2 class="font-bold text-sm sm:text-base text-white">너비 우선 탐색 (Breadth-First Search)</h2>
+          </div>
+          <span class="font-mono text-xs text-brand-blueGlow">Queue (FIFO) · O(V + E)</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          먼저 발견한 칸을 <span class="text-brand-blueGlow font-semibold">Queue Front</span>에서 꺼내는 선입선출(FIFO) 방식으로,
+          시작점으로부터 거리가 가까운 레벨(Depth)부터 동심원처럼 확장하며 <span class="text-indigo-300 font-semibold">항상 최단 탈출 경로를 보장</span>합니다.
+        </p>
+      </div>
+
+      <div class="panel-card rounded-2xl p-4 border-l-4 border-l-brand-emerald">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-[11px] font-mono font-bold rounded bg-brand-emerald/20 text-brand-emeraldGlow">DFS</span>
+            <h2 class="font-bold text-sm sm:text-base text-white">깊이 우선 탐색 (Depth-First Search)</h2>
+          </div>
+          <span class="font-mono text-xs text-brand-emeraldGlow">Stack (LIFO) · O(V + E)</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          가장 최근에 쌓은 칸을 <span class="text-brand-emeraldGlow font-semibold">Stack Top</span>에서 꺼내는 후입선출(LIFO) 방식으로,
+          한 갈래를 끝까지 깊게 파고든 뒤 막다른 길에서 <span class="text-rose-400 font-semibold">백트래킹(Backtracking)</span>하며 최단 경로는 보장하지 않습니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- Synchronized Timeline Scrubber & Legend -->
+    <section class="panel-card rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3 flex-1 min-w-[260px]">
+        <span class="text-xs font-mono text-slate-400 whitespace-nowrap">STEP TIMELINE</span>
+        <input id="stepScrubber" type="range" min="0" max="0" value="0" class="flex-1 accent-brand-indigo cursor-pointer" />
+        <span id="globalStepBadge" class="font-mono text-xs px-2.5 py-1 rounded-lg bg-slate-900 border border-brand-border text-slate-200 whitespace-nowrap">
+          0 / 0
+        </span>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-300">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-700 border border-slate-600 inline-block"></span>벽</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-blue/60 border border-brand-blueGlow inline-block"></span>Queue 대기</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-emerald/60 border border-brand-emeraldGlow inline-block"></span>Stack 대기</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-amber inline-block"></span>현재 위치</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-rose inline-block"></span>백트래킹</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-indigo inline-block"></span>탈출 경로</span>
+      </div>
+    </section>
+
+    <!-- 3. Dual Split Screen Visualization Panels -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+      <!-- LEFT PANEL: BFS (Queue / FIFO) -->
+      <article class="panel-card glow-blue rounded-2xl p-4 flex flex-col gap-3.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand-blue"></span>
+            <h3 class="font-bold text-white text-sm sm:text-base">BFS · 너비 우선 탐색</h3>
+            <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-brand-blue/15 text-brand-blueGlow border border-brand-blue/30">
+              Queue (FIFO)
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="bfsPhaseTag" class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-brand-border">
+              READY
+            </span>
+            <span id="bfsStepTime" class="font-mono text-xs text-brand-blueGlow">0.000 ms</span>
+          </div>
+        </div>
+
+        <!-- Maze Grid -->
+        <div class="flex justify-center">
+          <div id="bfsMazeGrid" class="maze-grid w-full max-w-[440px]"></div>
+        </div>
+
+        <!-- Live Queue Visualizer -->
+        <div class="bg-brand-dark/90 border border-brand-border rounded-xl p-2.5">
+          <div class="flex items-center justify-between text-[11px] mb-1.5">
+            <span class="font-semibold text-brand-blueGlow">Queue 상태 (FIFO: Front에서 꺼내고 Rear로 삽입)</span>
+            <span id="bfsQueueCount" class="font-mono text-slate-400">Size: 0</span>
+          </div>
+          <div id="bfsQueueStrip" class="ds-scroll flex items-center gap-1.5 overflow-x-auto pb-1 min-h-[30px] font-mono text-[11px]">
+            <span class="text-slate-500">대기 중인 노드 없음</span>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Depth Histogram -->
+        <div class="bg-brand-dark/90 border border-brand-border rounded-xl p-3">
+          <div class="flex items-center justify-between text-[11px] mb-2">
+            <span class="font-semibold text-slate-200">단계별 깊이(Depth) 분포 히스토그램</span>
+            <span id="bfsDepthLabel" class="font-mono text-brand-blueGlow">현재 Depth: 0</span>
+          </div>
+          <div id="bfsHistogram" class="h-28 flex items-end gap-1 pt-2 px-1 border-b border-brand-border/80"></div>
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+            <span>Depth 0 (Start) → 레벨별 파동 확장</span>
+            <span>■ 방문 / ■ Queue 대기</span>
+          </div>
+        </div>
+
+        <!-- Time Complexity O(V+E) Progress -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 font-mono">시간 복잡도 진행률 <strong class="text-brand-blueGlow">O(V + E)</strong></span>
+            <span id="bfsComplexityText" class="font-mono text-slate-300">0% (V: 0/0 · E: 0/0)</span>
+          </div>
+          <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-brand-border">
+            <div id="bfsProgressBar" class="h-full bg-gradient-to-r from-brand-blue to-brand-blueGlow transition-all duration-150" style="width: 0%"></div>
+          </div>
+          <div id="bfsTrace" class="font-mono text-[11px] text-slate-300 bg-slate-950/80 border border-brand-border rounded-lg px-3 py-2 min-h-[38px]">
+            실행 버튼을 눌러 BFS 탐색 과정을 확인하세요.
+          </div>
+        </div>
+      </article>
+
+      <!-- RIGHT PANEL: DFS (Stack / LIFO) -->
+      <article class="panel-card glow-emerald rounded-2xl p-4 flex flex-col gap-3.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-brand-border pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand-emerald"></span>
+            <h3 class="font-bold text-white text-sm sm:text-base">DFS · 깊이 우선 탐색</h3>
+            <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-brand-emerald/15 text-brand-emeraldGlow border border-brand-emerald/30">
+              Stack (LIFO)
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="dfsPhaseTag" class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-brand-border">
+              READY
+            </span>
+            <span id="dfsStepTime" class="font-mono text-xs text-brand-emeraldGlow">0.000 ms</span>
+          </div>
+        </div>
+
+        <!-- Maze Grid -->
+        <div class="flex justify-center">
+          <div id="dfsMazeGrid" class="maze-grid w-full max-w-[440px]"></div>
+        </div>
+
+        <!-- Live Stack Visualizer -->
+        <div class="bg-brand-dark/90 border border-brand-border rounded-xl p-2.5">
+          <div class="flex items-center justify-between text-[11px] mb-1.5">
+            <span class="font-semibold text-brand-emeraldGlow">Stack 상태 (LIFO: Top에 Push하고 Top에서 Pop)</span>
+            <span id="dfsStackCount" class="font-mono text-slate-400">Size: 0</span>
+          </div>
+          <div id="dfsStackStrip" class="ds-scroll flex items-center gap-1.5 overflow-x-auto pb-1 min-h-[30px] font-mono text-[11px]">
+            <span class="text-slate-500">적재된 노드 없음</span>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Depth Histogram -->
+        <div class="bg-brand-dark/90 border border-brand-border rounded-xl p-3">
+          <div class="flex items-center justify-between text-[11px] mb-2">
+            <span class="font-semibold text-slate-200">단계별 깊이(Depth) 분포 히스토그램</span>
+            <span id="dfsDepthLabel" class="font-mono text-brand-emeraldGlow">현재 Depth: 0</span>
+          </div>
+          <div id="dfsHistogram" class="h-28 flex items-end gap-1 pt-2 px-1 border-b border-brand-border/80"></div>
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+            <span>Depth 0 (Start) → 단일 분기 깊이 확장</span>
+            <span>■ 방문 / ■ Stack 대기</span>
+          </div>
+        </div>
+
+        <!-- Time Complexity O(V+E) Progress -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 font-mono">시간 복잡도 진행률 <strong class="text-brand-emeraldGlow">O(V + E)</strong></span>
+            <span id="dfsComplexityText" class="font-mono text-slate-300">0% (V: 0/0 · E: 0/0)</span>
+          </div>
+          <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-brand-border">
+            <div id="dfsProgressBar" class="h-full bg-gradient-to-r from-brand-emerald to-brand-emeraldGlow transition-all duration-150" style="width: 0%"></div>
+          </div>
+          <div id="dfsTrace" class="font-mono text-[11px] text-slate-300 bg-slate-950/80 border border-brand-border rounded-lg px-3 py-2 min-h-[38px]">
+            실행 버튼을 눌러 DFS 탐색 과정을 확인하세요.
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- 4. Real-time Metadata Summary Cards (4 Cards) -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="panel-card rounded-2xl p-4">
+        <div class="text-xs text-slate-400 mb-1">BFS 탈출 경로 · 방문 칸수</div>
+        <div id="kpiBfsPath" class="font-mono text-2xl font-bold text-brand-blueGlow">-</div>
+        <div id="kpiBfsSub" class="font-mono text-[11px] text-slate-400 mt-1">소요 시간: - · 최대 Queue: -</div>
+      </div>
+
+      <div class="panel-card rounded-2xl p-4">
+        <div class="text-xs text-slate-400 mb-1">DFS 탈출 경로 · 방문 칸수</div>
+        <div id="kpiDfsPath" class="font-mono text-2xl font-bold text-brand-emeraldGlow">-</div>
+        <div id="kpiDfsSub" class="font-mono text-[11px] text-slate-400 mt-1">소요 시간: - · 백트래킹: -</div>
+      </div>
+
+      <div class="panel-card rounded-2xl p-4">
+        <div class="text-xs text-slate-400 mb-1">최단 탈출 경로 판정</div>
+        <div id="kpiWinner" class="font-mono text-xl font-bold text-indigo-400">-</div>
+        <div id="kpiWinnerSub" class="text-[11px] text-slate-400 mt-1">동일 미로 기준 경로 길이 비교</div>
+      </div>
+
+      <div class="panel-card rounded-2xl p-4">
+        <div class="text-xs text-slate-400 mb-1">메모리 피크 (Queue vs Stack)</div>
+        <div id="kpiMemory" class="font-mono text-xl font-bold text-amber-400">-</div>
+        <div id="kpiMemorySub" class="text-[11px] text-slate-400 mt-1">최대 동시 대기 노드 수 비교</div>
+      </div>
+    </section>
+
+    <!-- 5. Visual Comparison Bars + Feature Matrix Table -->
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <!-- Quantitative Comparison Bars -->
+      <div class="panel-card rounded-2xl p-4 lg:col-span-2 space-y-4">
+        <div class="flex items-center justify-between border-b border-brand-border pb-2.5">
+          <h3 class="font-bold text-sm text-white">핵심 지표 정량 비교</h3>
+          <span class="font-mono text-[11px] text-slate-400">BFS vs DFS</span>
+        </div>
+        <div id="comparisonBars" class="space-y-3.5 text-xs">
+          <p class="text-slate-500">탐색을 실행하면 지표별 막대 비교가 표시됩니다.</p>
+        </div>
+      </div>
+
+      <!-- Functional Feature Comparison Table -->
+      <div class="panel-card rounded-2xl p-4 lg:col-span-3 overflow-x-auto">
+        <div class="flex items-center justify-between border-b border-brand-border pb-2.5 mb-3">
+          <h3 class="font-bold text-sm text-white">적용 기능 및 알고리즘 특성 비교</h3>
+          <button id="btnLogSheet" type="button" class="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-200 transition">
+            Google Sheets 기록
+          </button>
+        </div>
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-brand-border text-slate-400 font-mono">
+              <th class="py-2 pr-3">비교 항목</th>
+              <th class="py-2 px-3 text-brand-blueGlow">BFS (너비 우선 탐색)</th>
+              <th class="py-2 pl-3 text-brand-emeraldGlow">DFS (깊이 우선 탐색)</th>
+            </tr>
+          </thead>
+          <tbody id="featureTableBody" class="divide-y divide-brand-border/60 text-slate-300">
+            <tr>
+              <td class="py-2.5 pr-3 font-semibold text-slate-200">핵심 자료구조</td>
+              <td class="py-2.5 px-3">Queue (FIFO · 선입선출)</td>
+              <td class="py-2.5 pl-3">Stack (LIFO · 후입선출)</td>
+            </tr>
+            <tr>
+              <td class="py-2.5 pr-3 font-semibold text-slate-200">탐색 경로 패턴</td>
+              <td class="py-2.5 px-3">가까운 거리부터 레벨별 동심원 확장</td>
+              <td class="py-2.5 pl-3">한 분기를 끝까지 파고든 후 백트래킹</td>
+            </tr>
+            <tr>
+              <td class="py-2.5 pr-3 font-semibold text-slate-200">최단 탈출 경로</td>
+              <td class="py-2.5 px-3 text-indigo-300 font-semibold">항상 보장</td>
+              <td class="py-2.5 pl-3 text-amber-300">보장하지 않음</td>
+            </tr>
+            <tr>
+              <td class="py-2.5 pr-3 font-semibold text-slate-200">시간 복잡도</td>
+              <td class="py-2.5 px-3 font-mono">O(V + E)</td>
+              <td class="py-2.5 pl-3 font-mono">O(V + E)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- 6. Footer Spec Bar -->
+  <footer class="border-t border-brand-border bg-brand-header/80 mt-6">
+    <div class="max-w-[1440px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400">
+      <div>Frontend: <span class="text-slate-200">GAS/index.html</span> &amp; <span class="text-slate-200">GAS/code.gs</span></div>
+      <div>Backend: <span class="text-slate-200">server/main.py</span> (FastAPI · Cloud Run)</div>
+      <div id="engineSourceBadge" class="text-brand-blueGlow">Engine: 대기 중</div>
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. Preset Mazes (Mirror of server/algorithms.py for instant render/fallback)
+    // =========================================================================
+    const LOCAL_PRESETS = {
+      classic_branch: {
+        id: 'classic_branch',
+        name: '다중 분기 미로 (기본 · 11×11)',
+        start: [1, 1],
+        goal: [9, 9],
+        grid: [
+          [1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,1,0,0,0,1],
+          [1,0,1,1,1,0,1,0,1,0,1],
+          [1,0,1,0,0,0,0,0,1,0,1],
+          [1,0,1,0,1,1,1,0,1,0,1],
+          [1,0,0,0,0,0,1,0,0,0,1],
+          [1,1,1,0,1,0,1,1,1,0,1],
+          [1,0,0,0,1,0,0,0,0,0,1],
+          [1,0,1,1,1,1,1,0,1,0,1],
+          [1,0,0,0,0,0,0,0,1,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1]
+        ]
+      },
+      open_corridor: {
+        id: 'open_corridor',
+        name: '개방형 광장 미로 (11×11)',
+        start: [1, 1],
+        goal: [9, 9],
+        grid: [
+          [1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,1,1,0,1,1,0,0,1],
+          [1,0,0,1,0,0,0,1,0,0,1],
+          [1,0,0,0,0,1,0,0,0,0,1],
+          [1,0,1,0,1,1,1,0,1,0,1],
+          [1,0,0,0,0,1,0,0,0,0,1],
+          [1,0,0,1,0,0,0,1,0,0,1],
+          [1,0,0,1,1,0,1,1,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1]
+        ]
+      },
+      dead_end_trap: {
+        id: 'dead_end_trap',
+        name: '막다른 길 함정 미로 (13×13)',
+        start: [1, 1],
+        goal: [11, 11],
+        grid: [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,1,0,0,0,0,0,0,0,1],
+          [1,0,1,0,1,0,1,1,1,1,1,0,1],
+          [1,0,1,0,0,0,1,0,0,0,1,0,1],
+          [1,0,1,1,1,1,1,0,1,0,1,0,1],
+          [1,0,0,0,0,0,0,0,1,0,0,0,1],
+          [1,1,1,0,1,1,1,0,1,1,1,0,1],
+          [1,0,0,0,1,0,0,0,0,0,1,1,1],
+          [1,0,1,1,1,0,1,1,1,0,1,0,1],
+          [1,0,1,0,0,0,1,0,0,0,0,0,1],
+          [1,0,1,0,1,1,1,0,1,1,1,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ]
+      },
+      spiral_labyrinth: {
+        id: 'spiral_labyrinth',
+        name: '복합 미궁 (13×13)',
+        start: [1, 1],
+        goal: [6, 6],
+        grid: [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,1,1,1,1,1,1,1,1,1,0,1],
+          [1,0,1,0,0,0,0,0,0,0,1,0,1],
+          [1,0,1,0,1,1,1,1,1,0,1,0,1],
+          [1,0,0,0,1,0,0,0,1,0,1,0,1],
+          [1,0,1,0,1,0,0,0,0,0,0,0,1],
+          [1,0,1,0,1,0,1,1,1,0,1,0,1],
+          [1,0,1,0,0,0,0,0,1,0,1,0,1],
+          [1,0,1,1,1,0,1,0,1,0,1,0,1],
+          [1,0,0,0,0,0,1,0,0,0,0,0,1],
+          [1,1,1,0,1,0,0,0,1,1,1,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ]
+      }
+    };
+
+    const DIRS = [[-1, 0, '상'], [0, 1, '우'], [1, 0, '하'], [0, -1, '좌']];
+
+    // =========================================================================
+    // 2. App State
+    // =========================================================================
+    const state = {
+      isGAS: typeof google !== 'undefined' && google.script && google.script.run,
+      backendUrl: '',
+      backendConnected: false,
+      editMode: false,
+      maze: cloneMaze(LOCAL_PRESETS.classic_branch),
+      result: null,
+      stepIndex: 0,
+      maxStep: 0,
+      playing: false,
+      timerId: null,
+      speed: 6
+    };
+
+    function cloneMaze(m) {
+      return {
+        id: m.id,
+        name: m.name,
+        start: [...m.start],
+        goal: [...m.goal],
+        grid: m.grid.map(row => [...row])
+      };
+    }
+
+    function keyOf(r, c) { return `${r},${c}`; }
+
+    // =========================================================================
+    // 3. Backend Communication (GAS Proxy -> FastAPI or Direct Fetch -> Fallback)
+    // =========================================================================
+    function callGas(fnName, ...args) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)[fnName](...args);
+      });
+    }
+
+    async function initBackendConnection() {
+      if (state.isGAS) {
+        try {
+          const saved = await callGas('getApiBaseUrl');
+          if (saved) {
+            state.backendUrl = saved;
+            document.getElementById('backendUrlInput').value = saved;
+          }
+        } catch (e) {}
+      } else {
+        const saved = localStorage.getItem('bfs_dfs_backend_url') || '';
+        state.backendUrl = saved;
+        document.getElementById('backendUrlInput').value = saved;
+      }
+      await checkHealth();
+    }
+
+    async function checkHealth() {
+      const dot = document.getElementById('connectionDot');
+      const statusEl = document.getElementById('connectionStatus');
+
+      if (!state.backendUrl) {
+        state.backendConnected = false;
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        statusEl.textContent = '로컬 시뮬레이션 모드 (FastAPI URL 미설정)';
+        return false;
+      }
+
+      try {
+        if (state.isGAS) {
+          const res = await callGas('checkBackendHealth', state.backendUrl);
+          state.backendConnected = !!res.connected;
+          dot.className = state.backendConnected
+            ? 'w-2 h-2 rounded-full bg-brand-emerald animate-pulse'
+            : 'w-2 h-2 rounded-full bg-brand-rose';
+          statusEl.textContent = res.message || (state.backendConnected ? 'FastAPI 연결됨' : '연결 실패');
+          return state.backendConnected;
+        } else {
+          const resp = await fetch(`${state.backendUrl.replace(/\/+$/, '')}/health`);
+          if (resp.ok) {
+            state.backendConnected = true;
+            dot.className = 'w-2 h-2 rounded-full bg-brand-emerald animate-pulse';
+            statusEl.textContent = `Connected (@main.py · ${state.backendUrl})`;
+            return true;
+          }
+          throw new Error(`HTTP ${resp.status}`);
+        }
+      } catch (err) {
+        state.backendConnected = false;
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        statusEl.textContent = `백엔드 미응답 · 로컬 엔진 전환 (${err.message || err})`;
+        return false;
+      }
+    }
+
+    async function solveCurrentMaze() {
+      const payload = {
+        maze_name: state.maze.name,
+        grid: state.maze.grid,
+        start: state.maze.start,
+        goal: state.maze.goal
+      };
+
+      if (state.backendUrl) {
+        try {
+          if (state.isGAS) {
+            const res = await callGas('solveMazeFromBackend', state.backendUrl, payload);
+            if (res && res.success && res.data && res.data.data) {
+              document.getElementById('engineSourceBadge').textContent = 'Engine: FastAPI (@main.py via code.gs)';
+              return res.data.data;
+            }
+          } else {
+            const resp = await fetch(`${state.backendUrl.replace(/\/+$/, '')}/solve`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (resp.ok) {
+              const json = await resp.json();
+              if (json && json.data) {
+                document.getElementById('engineSourceBadge').textContent = 'Engine: FastAPI (@main.py Direct)';
+                return json.data;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Backend fallback:', err);
+        }
+      }
+
+      document.getElementById('engineSourceBadge').textContent = 'Engine: Local Fallback Simulator';
+      return runLocalComparison(state.maze);
+    }
+
+    async function requestRandomMaze() {
+      const size = state.maze.grid.length >= 13 ? 13 : 11;
+      if (state.backendUrl && state.backendConnected) {
+        try {
+          if (state.isGAS) {
+            const res = await callGas('generateMazeFromBackend', state.backendUrl, size, size);
+            if (res && res.success && res.data && res.data.maze) {
+              return cloneMaze(res.data.maze);
+            }
+          } else {
+            const resp = await fetch(`${state.backendUrl.replace(/\/+$/, '')}/maze/generate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: size, cols: size, braid_ratio: 0.24 })
+            });
+            if (resp.ok) {
+              const json = await resp.json();
+              if (json && json.maze) return cloneMaze(json.maze);
+            }
+          }
+        } catch (err) {}
+      }
+      return generateLocalMaze(size, size);
+    }
+
+    // =========================================================================
+    // 4. Local Fallback Algorithm Engine (Matches server/algorithms.py schema)
+    // =========================================================================
+    function generateLocalMaze(rows, cols) {
+      const grid = Array.from({ length: rows }, () => Array(cols).fill(1));
+      const start = [1, 1];
+      const goal = [rows - 2, cols - 2];
+      grid[1][1] = 0;
+      const stack = [[1, 1]];
+      while (stack.length) {
+        const [r, c] = stack[stack.length - 1];
+        const nbrs = [];
+        for (const [dr, dc] of DIRS) {
+          const nr = r + dr * 2, nc = c + dc * 2;
+          if (nr >= 1 && nr < rows - 1 && nc >= 1 && nc < cols - 1 && grid[nr][nc] === 1) {
+            nbrs.push([nr, nc, r + dr, c + dc]);
+          }
+        }
+        if (nbrs.length) {
+          const [nr, nc, wr, wc] = nbrs[Math.floor(Math.random() * nbrs.length)];
+          grid[wr][wc] = 0;
+          grid[nr][nc] = 0;
+          stack.push([nr, nc]);
+        } else {
+          stack.pop();
+        }
+      }
+      const walls = [];
+      for (let r = 1; r < rows - 1; r++) {
+        for (let c = 1; c < cols - 1; c++) {
+          if (grid[r][c] === 1) {
+            const h = grid[r][c - 1] === 0 && grid[r][c + 1] === 0;
+            const v = grid[r - 1][c] === 0 && grid[r + 1][c] === 0;
+            if (h !== v) walls.push([r, c]);
+          }
+        }
+      }
+      for (let i = walls.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [walls[i], walls[j]] = [walls[j], walls[i]];
+      }
+      const openCnt = Math.max(2, Math.floor(walls.length * 0.24));
+      for (let i = 0; i < openCnt && i < walls.length; i++) {
+        grid[walls[i][0]][walls[i][1]] = 0;
+      }
+      grid[start[0]][start[1]] = 0;
+      grid[goal[0]][goal[1]] = 0;
+      return { id: `random_${rows}x${cols}`, name: `랜덤 다중경로 미로 (${rows}×${cols})`, start, goal, grid };
+    }
+
+    function analyzeGraphLocal(grid) {
+      let v = 0, e = 0;
+      const rows = grid.length, cols = grid[0].length;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === 0) {
+            v++;
+            for (const [dr, dc] of DIRS) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 0) e++;
+            }
+          }
+        }
+      }
+      return { v, e };
+    }
+
+    function buildHistogramLocal(visitedDepths, frontierDepths) {
+      const vc = {}, fc = {};
+      let maxD = 0;
+      for (const d of visitedDepths.values()) { vc[d] = (vc[d] || 0) + 1; if (d > maxD) maxD = d; }
+      for (const d of frontierDepths.values()) { fc[d] = (fc[d] || 0) + 1; if (d > maxD) maxD = d; }
+      const bins = [];
+      for (let d = 0; d <= maxD; d++) {
+        const vCnt = vc[d] || 0, fCnt = fc[d] || 0;
+        bins.push({ depth: d, visited: vCnt, frontier: fCnt, total: vCnt + fCnt });
+      }
+      return bins;
+    }
+
+    function reconstructLocal(parent, target) {
+      const path = [];
+      let curr = target;
+      const seen = new Set();
+      while (curr && !seen.has(keyOf(curr[0], curr[1]))) {
+        const k = keyOf(curr[0], curr[1]);
+        seen.add(k);
+        path.push([curr[0], curr[1]]);
+        curr = parent.get(k);
+      }
+      return path.reverse();
+    }
+
+    function makeComplexity(vTotal, eTotal, vVis, eChk) {
+      const pct = Math.min(100, Number((((vVis + eChk) / Math.max(1, vTotal + eTotal)) * 100).toFixed(1)));
+      return { notation: 'O(V + E)', v_total: vTotal, e_total: eTotal, v_visited: vVis, e_checked: eChk, operations: vVis + eChk, progress_pct: pct };
+    }
+
+    function runLocalBFS(grid, start, goal) {
+      const rows = grid.length, cols = grid[0].length;
+      const { v: vTotal, e: eTotal } = analyzeGraphLocal(grid);
+      const t0 = performance.now();
+      const queue = [start];
+      const discovered = new Set([keyOf(start[0], start[1])]);
+      const visitedOrder = [];
+      const visitedDepths = new Map();
+      const frontierDepths = new Map([[keyOf(start[0], start[1]), 0]]);
+      const parent = new Map([[keyOf(start[0], start[1]), null]]);
+      const depthMap = new Map([[keyOf(start[0], start[1]), 0]]);
+      const steps = [];
+      let stepIdx = 0, edgesChecked = 0, maxFrontier = 1, found = false, finalPath = [];
+
+      steps.push({
+        step: 0, phase: 'INIT', current: start, visited: [], frontier: [start], path: [start],
+        current_depth: 0, elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+        time_complexity: makeComplexity(vTotal, eTotal, 0, 0),
+        histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: 0, frontier_count: 1, current_depth: 0, edges_checked: 0, backtracks: 0 } },
+        trace: `시작 위치 (${start[0]}, ${start[1]})을 Queue(FIFO)에 삽입하며 BFS 탐색 초기화`
+      });
+
+      while (queue.length) {
+        const curr = queue.shift();
+        const ck = keyOf(curr[0], curr[1]);
+        const cd = depthMap.get(ck);
+        frontierDepths.delete(ck);
+        visitedDepths.set(ck, cd);
+        visitedOrder.push([curr[0], curr[1]]);
+        stepIdx++;
+
+        if (curr[0] === goal[0] && curr[1] === goal[1]) {
+          found = true;
+          finalPath = reconstructLocal(parent, goal);
+          steps.push({
+            step: stepIdx, phase: 'FOUND', current: curr, visited: [...visitedOrder],
+            frontier: queue.map(x => [...x]), path: finalPath, current_depth: cd,
+            elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+            time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+            histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: queue.length, current_depth: cd, edges_checked: edgesChecked, backtracks: 0 } },
+            trace: `출구 (${goal[0]}, ${goal[1]}) 도착! 최단 탈출 거리 ${finalPath.length - 1}칸 (방문 ${visitedOrder.length}칸)`
+          });
+          break;
+        }
+
+        const enq = [];
+        for (const [dr, dc, dname] of DIRS) {
+          const nr = curr[0] + dr, nc = curr[1] + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 0) {
+            edgesChecked++;
+            const nk = keyOf(nr, nc);
+            if (!discovered.has(nk)) {
+              discovered.add(nk);
+              parent.set(nk, curr);
+              depthMap.set(nk, cd + 1);
+              frontierDepths.set(nk, cd + 1);
+              queue.push([nr, nc]);
+              enq.push(`${dname}(${nr},${nc})`);
+            }
+          }
+        }
+        maxFrontier = Math.max(maxFrontier, queue.length);
+        steps.push({
+          step: stepIdx, phase: enq.length ? 'EXPLORE' : 'DEAD_END', current: curr,
+          visited: [...visitedOrder], frontier: queue.map(x => [...x]),
+          path: reconstructLocal(parent, curr), current_depth: cd,
+          elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+          time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+          histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: queue.length, current_depth: cd, edges_checked: edgesChecked, backtracks: 0 } },
+          trace: enq.length
+            ? `Queue Front (${curr[0]},${curr[1]}) [Depth ${cd}] Dequeue → Rear Enqueue: ${enq.join(', ')}`
+            : `Queue Front (${curr[0]},${curr[1]}) [Depth ${cd}] Dequeue → 추가 확장 가능한 인접 칸 없음`
+        });
+      }
+
+      if (!found) {
+        steps.push({
+          step: ++stepIdx, phase: 'NO_PATH', current: start, visited: [...visitedOrder], frontier: [], path: [],
+          current_depth: 0, elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+          time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+          histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: 0, current_depth: 0, edges_checked: edgesChecked, backtracks: 0 } },
+          trace: 'Queue가 비어 탐색을 종료했습니다. 출구로 가는 경로가 존재하지 않습니다.'
+        });
+      }
+
+      return {
+        algorithm: 'BFS',
+        summary: {
+          found, total_steps: steps.length - 1, visited_count: visitedOrder.length,
+          path_length: found ? Math.max(0, finalPath.length - 1) : 0, path: finalPath,
+          max_frontier_size: maxFrontier, edges_checked: edgesChecked, backtrack_count: 0,
+          elapsed_ms: Number((performance.now() - t0).toFixed(4))
+        },
+        steps
+      };
+    }
+
+    function runLocalDFS(grid, start, goal) {
+      const rows = grid.length, cols = grid[0].length;
+      const { v: vTotal, e: eTotal } = analyzeGraphLocal(grid);
+      const t0 = performance.now();
+      const stack = [start];
+      const visitedSet = new Set();
+      const visitedOrder = [];
+      const visitedDepths = new Map();
+      const frontierDepths = new Map([[keyOf(start[0], start[1]), 0]]);
+      const parent = new Map([[keyOf(start[0], start[1]), null]]);
+      const depthMap = new Map([[keyOf(start[0], start[1]), 0]]);
+      const steps = [];
+      let stepIdx = 0, edgesChecked = 0, maxFrontier = 1, backtracks = 0, found = false, finalPath = [];
+
+      steps.push({
+        step: 0, phase: 'INIT', current: start, visited: [], frontier: [start], path: [start],
+        current_depth: 0, elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+        time_complexity: makeComplexity(vTotal, eTotal, 0, 0),
+        histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: 0, frontier_count: 1, current_depth: 0, edges_checked: 0, backtracks: 0 } },
+        trace: `시작 위치 (${start[0]}, ${start[1]})을 Stack(LIFO)에 Push하며 DFS 탐색 초기화`
+      });
+
+      while (stack.length) {
+        const curr = stack.pop();
+        const ck = keyOf(curr[0], curr[1]);
+        if (visitedSet.has(ck)) { frontierDepths.delete(ck); continue; }
+        visitedSet.add(ck);
+        const cd = depthMap.get(ck);
+        frontierDepths.delete(ck);
+        visitedDepths.set(ck, cd);
+        visitedOrder.push([curr[0], curr[1]]);
+        stepIdx++;
+
+        if (curr[0] === goal[0] && curr[1] === goal[1]) {
+          found = true;
+          finalPath = reconstructLocal(parent, goal);
+          const activeF = stack.filter(x => !visitedSet.has(keyOf(x[0], x[1])));
+          steps.push({
+            step: stepIdx, phase: 'FOUND', current: curr, visited: [...visitedOrder],
+            frontier: activeF, path: finalPath, current_depth: cd,
+            elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+            time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+            histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: activeF.length, current_depth: cd, edges_checked: edgesChecked, backtracks } },
+            trace: `출구 (${goal[0]}, ${goal[1]}) 도착! 탐색 경로 길이 ${finalPath.length - 1}칸 (방문 ${visitedOrder.length}칸, 백트래킹 ${backtracks}회)`
+          });
+          break;
+        }
+
+        const pushed = [];
+        for (let i = DIRS.length - 1; i >= 0; i--) {
+          const [dr, dc, dname] = DIRS[i];
+          const nr = curr[0] + dr, nc = curr[1] + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 0) {
+            edgesChecked++;
+            const nk = keyOf(nr, nc);
+            if (!visitedSet.has(nk)) {
+              parent.set(nk, curr);
+              depthMap.set(nk, cd + 1);
+              frontierDepths.set(nk, cd + 1);
+              stack.push([nr, nc]);
+              pushed.push(`${dname}(${nr},${nc})`);
+            }
+          }
+        }
+        const activeF = stack.filter(x => !visitedSet.has(keyOf(x[0], x[1])));
+        maxFrontier = Math.max(maxFrontier, activeF.length);
+        let phase = 'EXPLORE';
+        let trace = `Stack Top (${curr[0]},${curr[1]}) [Depth ${cd}] Pop → Stack Push: ${pushed.join(', ')}`;
+        if (!pushed.length) {
+          backtracks++;
+          phase = 'BACKTRACK';
+          trace = `막다른 길 (${curr[0]},${curr[1]}) [Depth ${cd}] 도달 → Stack 이전 분기로 백트래킹 (누적 ${backtracks}회)`;
+        }
+        steps.push({
+          step: stepIdx, phase, current: curr, visited: [...visitedOrder], frontier: activeF,
+          path: reconstructLocal(parent, curr), current_depth: cd,
+          elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+          time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+          histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: activeF.length, current_depth: cd, edges_checked: edgesChecked, backtracks } },
+          trace
+        });
+      }
+
+      if (!found) {
+        steps.push({
+          step: ++stepIdx, phase: 'NO_PATH', current: start, visited: [...visitedOrder], frontier: [], path: [],
+          current_depth: 0, elapsed_ms: Number((performance.now() - t0).toFixed(4)),
+          time_complexity: makeComplexity(vTotal, eTotal, visitedOrder.length, edgesChecked),
+          histogram: { depth_bins: buildHistogramLocal(visitedDepths, frontierDepths), metrics: { visited_count: visitedOrder.length, frontier_count: 0, current_depth: 0, edges_checked: edgesChecked, backtracks } },
+          trace: 'Stack이 비어 탐색을 종료했습니다. 출구로 가는 경로가 존재하지 않습니다.'
+        });
+      }
+
+      return {
+        algorithm: 'DFS',
+        summary: {
+          found, total_steps: steps.length - 1, visited_count: visitedOrder.length,
+          path_length: found ? Math.max(0, finalPath.length - 1) : 0, path: finalPath,
+          max_frontier_size: maxFrontier, edges_checked: edgesChecked, backtrack_count: backtracks,
+          elapsed_ms: Number((performance.now() - t0).toFixed(4))
+        },
+        steps
+      };
+    }
+
+    function runLocalComparison(maze) {
+      const bfs = runLocalBFS(maze.grid, maze.start, maze.goal);
+      const dfs = runLocalDFS(maze.grid, maze.start, maze.goal);
+      const b = bfs.summary, d = dfs.summary;
+      return {
+        maze: { ...maze, rows: maze.grid.length, cols: maze.grid[0].length },
+        bfs,
+        dfs,
+        comparison: {
+          shortest_path_winner: !b.found || !d.found ? 'NONE' : (b.path_length < d.path_length ? 'BFS' : (d.path_length < b.path_length ? 'DFS' : 'TIE')),
+          feature_matrix: [
+            { feature: '핵심 자료구조', bfs: 'Queue (FIFO · 선입선출)', dfs: 'Stack (LIFO · 후입선출)' },
+            { feature: '탐색 확장 방식', bfs: '시작점 기준 레벨(거리)별 동심원 확장', dfs: '한 분기를 끝까지 파고든 후 백트래킹' },
+            { feature: '최단 경로 보장', bfs: '보장 (가중치 없는 미로에서 항상 최단)', dfs: '미보장 (먼저 도달한 깊은 경로 반환)' },
+            { feature: '시간 복잡도', bfs: 'O(V + E)', dfs: 'O(V + E)' },
+            { feature: '메모리(공간) 특성', bfs: `최대 Queue ${b.max_frontier_size}칸 (너비에 비례)`, dfs: `최대 Stack ${d.max_frontier_size}칸 (깊이에 비례)` },
+            { feature: '미로 탈출 결과', bfs: `경로 ${b.path_length}칸 / 방문 ${b.visited_count}칸`, dfs: `경로 ${d.path_length}칸 / 방문 ${d.visited_count}칸 (백트래킹 ${d.backtrack_count}회)` }
+          ]
+        }
+      };
+    }
+
+    // =========================================================================
+    // 5. Rendering Functions (Maze Grid, Queue/Stack, Depth Histogram, KPIs)
+    // =========================================================================
+    function renderMazeGrid(containerId, algoType, snap) {
+      const container = document.getElementById(containerId);
+      const grid = state.maze.grid;
+      const rows = grid.length;
+      const cols = grid[0].length;
+      const [sr, sc] = state.maze.start;
+      const [gr, gc] = state.maze.goal;
+
+      container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+
+      const visitedSet = new Set((snap?.visited || []).map(([r, c]) => keyOf(r, c)));
+      const frontierSet = new Set((snap?.frontier || []).map(([r, c]) => keyOf(r, c)));
+      const pathSet = new Set((snap?.path || []).map(([r, c]) => keyOf(r, c)));
+      const currKey = snap?.current ? keyOf(snap.current[0], snap.current[1]) : null;
+      const isBacktrack = snap?.phase === 'BACKTRACK';
+
+      let html = '';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const k = keyOf(r, c);
+          const isWall = grid[r][c] === 1;
+          const isStart = r === sr && c === sc;
+          const isGoal = r === gr && c === gc;
+
+          let cls = 'maze-cell ';
+          if (state.editMode && !isStart && !isGoal && r > 0 && r < rows - 1 && c > 0 && c < cols - 1) {
+            cls += 'editable ';
+          }
+
+          if (isWall) {
+            cls += 'cell-wall ';
+          } else if (k === currKey && snap) {
+            cls += isBacktrack ? 'cell-backtrack ' : 'cell-current ';
+          } else if (snap?.phase === 'FOUND' && pathSet.has(k)) {
+            cls += 'cell-path ';
+          } else if (frontierSet.has(k)) {
+            cls += algoType === 'BFS' ? 'cell-frontier-bfs ' : 'cell-frontier-dfs ';
+          } else if (visitedSet.has(k)) {
+            cls += algoType === 'BFS' ? 'cell-visited-bfs ' : 'cell-visited-dfs ';
+          } else {
+            cls += 'cell-open ';
+          }
+
+          if (isStart) cls += 'cell-start ';
+          if (isGoal) cls += 'cell-goal ';
+
+          let label = '';
+          if (isStart) label = 'S';
+          else if (isGoal) label = 'E';
+          else if (k === currKey && snap) label = algoType === 'BFS' ? 'Q' : 'S';
+
+          html += `<div class="${cls}" data-r="${r}" data-c="${c}" title="(${r},${c})">${label}</div>`;
+        }
+      }
+      container.innerHTML = html;
+
+      if (state.editMode) {
+        container.querySelectorAll('.maze-cell.editable').forEach(el => {
+          el.addEventListener('click', () => {
+            const r = Number(el.dataset.r);
+            const c = Number(el.dataset.c);
+            state.maze.grid[r][c] = state.maze.grid[r][c] === 1 ? 0 : 1;
+            state.maze.name = '사용자 편집 미로';
+            stopPlayback();
+            state.result = null;
+            renderInitialPreview();
+          });
+        });
+      }
+    }
+
+    function renderDataStructure(stripId, countId, frontier, type) {
+      const strip = document.getElementById(stripId);
+      const countEl = document.getElementById(countId);
+      const list = frontier || [];
+      countEl.textContent = `Size: ${list.length}`;
+
+      if (!list.length) {
+        strip.innerHTML = '<span class="text-slate-500">비어 있음</span>';
+        return;
+      }
+
+      const maxShow = 14;
+      if (type === 'BFS') {
+        const sliced = list.slice(0, maxShow);
+        const items = sliced.map(([r, c], idx) => {
+          const highlight = idx === 0
+            ? 'bg-brand-amber/20 border-brand-amber text-amber-300 font-bold'
+            : 'bg-brand-blue/15 border-brand-blue/40 text-brand-blueGlow';
+          return `<span class="px-2 py-0.5 rounded border ${highlight} shrink-0">(${r},${c})</span>`;
+        });
+        const extra = list.length > maxShow ? `<span class="text-slate-400 shrink-0">+${list.length - maxShow}</span>` : '';
+        strip.innerHTML = `<span class="text-[10px] text-amber-400 shrink-0">FRONT←</span>${items.join('')}${extra}<span class="text-[10px] text-slate-500 shrink-0">←REAR</span>`;
+      } else {
+        const reversed = [...list].reverse().slice(0, maxShow);
+        const items = reversed.map(([r, c], idx) => {
+          const highlight = idx === 0
+            ? 'bg-brand-amber/20 border-brand-amber text-amber-300 font-bold'
+            : 'bg-brand-emerald/15 border-brand-emerald/40 text-brand-emeraldGlow';
+          return `<span class="px-2 py-0.5 rounded border ${highlight} shrink-0">(${r},${c})</span>`;
+        });
+        const extra = list.length > maxShow ? `<span class="text-slate-400 shrink-0">+${list.length - maxShow}</span>` : '';
+        strip.innerHTML = `<span class="text-[10px] text-amber-400 shrink-0">TOP→</span>${items.join('')}${extra}<span class="text-[10px] text-slate-500 shrink-0">→BOTTOM</span>`;
+      }
+    }
+
+    function renderHistogram(containerId, bins, algoType, globalMaxCount) {
+      const el = document.getElementById(containerId);
+      if (!bins || !bins.length) {
+        el.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-slate-600 font-mono">히스토그램 대기 중</div>';
+        return;
+      }
+
+      const maxVal = Math.max(globalMaxCount || 1, ...bins.map(b => b.total), 4);
+      const visitedColor = algoType === 'BFS' ? 'bg-brand-blue' : 'bg-brand-emerald';
+      const frontierColor = 'bg-brand-amber';
+
+      el.innerHTML = bins.map(b => {
+        const vPct = Math.round((b.visited / maxVal) * 100);
+        const fPct = Math.round((b.frontier / maxVal) * 100);
+        return `
+          <div class="flex-1 h-full flex flex-col justify-end items-center group relative min-w-[6px]" title="Depth ${b.depth}: 방문 ${b.visited}, 대기 ${b.frontier}">
+            <div class="w-full max-w-[18px] h-full flex flex-col justify-end">
+              ${b.frontier > 0 ? `<div class="histogram-bar w-full ${frontierColor} rounded-t-sm opacity-90" style="height:${Math.max(4, fPct)}%"></div>` : ''}
+              ${b.visited > 0 ? `<div class="histogram-bar w-full ${visitedColor} ${b.frontier > 0 ? '' : 'rounded-t-sm'}" style="height:${Math.max(4, vPct)}%"></div>` : ''}
+            </div>
+            <span class="text-[9px] font-mono text-slate-500 mt-0.5">${b.depth % 2 === 0 || bins.length <= 12 ? b.depth : ''}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function phaseBadgeClass(phase) {
+      if (phase === 'FOUND') return 'bg-brand-indigo/25 text-indigo-300 border-brand-indigo/50';
+      if (phase === 'BACKTRACK' || phase === 'NO_PATH') return 'bg-brand-rose/20 text-rose-300 border-brand-rose/40';
+      if (phase === 'EXPLORE') return 'bg-brand-amber/15 text-amber-300 border-brand-amber/40';
+      return 'bg-slate-800 text-slate-300 border-brand-border';
+    }
+
+    function renderStep(stepIdx) {
+      if (!state.result) return;
+      const bfsSteps = state.result.bfs.steps;
+      const dfsSteps = state.result.dfs.steps;
+
+      const bSnap = bfsSteps[Math.min(stepIdx, bfsSteps.length - 1)];
+      const dSnap = dfsSteps[Math.min(stepIdx, dfsSteps.length - 1)];
+
+      const maxBinVal = Math.max(
+        ...bSnap.histogram.depth_bins.map(b => b.total),
+        ...dSnap.histogram.depth_bins.map(b => b.total),
+        4
+      );
+
+      // BFS Panel
+      renderMazeGrid('bfsMazeGrid', 'BFS', bSnap);
+      renderDataStructure('bfsQueueStrip', 'bfsQueueCount', bSnap.frontier, 'BFS');
+      renderHistogram('bfsHistogram', bSnap.histogram.depth_bins, 'BFS', maxBinVal);
+      const bfsTag = document.getElementById('bfsPhaseTag');
+      bfsTag.textContent = bSnap.phase;
+      bfsTag.className = `font-mono text-[11px] px-2 py-0.5 rounded border ${phaseBadgeClass(bSnap.phase)}`;
+      document.getElementById('bfsStepTime').textContent = `${bSnap.elapsed_ms.toFixed(3)} ms`;
+      document.getElementById('bfsDepthLabel').textContent = `현재 Depth: ${bSnap.current_depth}`;
+      document.getElementById('bfsProgressBar').style.width = `${bSnap.time_complexity.progress_pct}%`;
+      document.getElementById('bfsComplexityText').textContent =
+        `${bSnap.time_complexity.progress_pct}% (V: ${bSnap.time_complexity.v_visited}/${bSnap.time_complexity.v_total} · E: ${bSnap.time_complexity.e_checked}/${bSnap.time_complexity.e_total})`;
+      document.getElementById('bfsTrace').textContent = `[Step ${bSnap.step}] ${bSnap.trace}`;
+
+      // DFS Panel
+      renderMazeGrid('dfsMazeGrid', 'DFS', dSnap);
+      renderDataStructure('dfsStackStrip', 'dfsStackCount', dSnap.frontier, 'DFS');
+      renderHistogram('dfsHistogram', dSnap.histogram.depth_bins, 'DFS', maxBinVal);
+      const dfsTag = document.getElementById('dfsPhaseTag');
+      dfsTag.textContent = dSnap.phase;
+      dfsTag.className = `font-mono text-[11px] px-2 py-0.5 rounded border ${phaseBadgeClass(dSnap.phase)}`;
+      document.getElementById('dfsStepTime').textContent = `${dSnap.elapsed_ms.toFixed(3)} ms`;
+      document.getElementById('dfsDepthLabel').textContent = `현재 Depth: ${dSnap.current_depth}`;
+      document.getElementById('dfsProgressBar').style.width = `${dSnap.time_complexity.progress_pct}%`;
+      document.getElementById('dfsComplexityText').textContent =
+        `${dSnap.time_complexity.progress_pct}% (V: ${dSnap.time_complexity.v_visited}/${dSnap.time_complexity.v_total} · E: ${dSnap.time_complexity.e_checked}/${dSnap.time_complexity.e_total})`;
+      document.getElementById('dfsTrace').textContent = `[Step ${dSnap.step}] ${dSnap.trace}`;
+
+      // Timeline UI
+      document.getElementById('stepScrubber').value = stepIdx;
+      document.getElementById('globalStepBadge').textContent = `${stepIdx} / ${state.maxStep}`;
+    }
+
+    function renderComparisonSummary(data) {
+      const b = data.bfs.summary;
+      const d = data.dfs.summary;
+      const comp = data.comparison;
+
+      document.getElementById('kpiBfsPath').textContent = b.found ? `${b.path_length}칸 / ${b.visited_count}방문` : '탈출 불가';
+      document.getElementById('kpiBfsSub').textContent = `소요: ${b.elapsed_ms.toFixed(3)} ms · 최대 Queue: ${b.max_frontier_size}`;
+
+      document.getElementById('kpiDfsPath').textContent = d.found ? `${d.path_length}칸 / ${d.visited_count}방문` : '탈출 불가';
+      document.getElementById('kpiDfsSub').textContent = `소요: ${d.elapsed_ms.toFixed(3)} ms · 백트래킹: ${d.backtrack_count}회`;
+
+      if (comp.shortest_path_winner === 'BFS') {
+        document.getElementById('kpiWinner').textContent = `BFS 우세 (-${d.path_length - b.path_length}칸)`;
+        document.getElementById('kpiWinnerSub').textContent = 'BFS가 최단 탈출 경로를 정확히 보장함';
+      } else if (comp.shortest_path_winner === 'TIE') {
+        document.getElementById('kpiWinner').textContent = `동률 (${b.path_length}칸)`;
+        document.getElementById('kpiWinnerSub').textContent = '두 알고리즘 모두 동일 길이 경로 도달';
+      } else {
+        document.getElementById('kpiWinner').textContent = '탈출 경로 없음';
+        document.getElementById('kpiWinnerSub').textContent = '벽을 편집해 출구 경로를 열어보세요';
+      }
+
+      document.getElementById('kpiMemory').textContent = `Q:${b.max_frontier_size} vs S:${d.max_frontier_size}`;
+      document.getElementById('kpiMemorySub').textContent =
+        b.max_frontier_size > d.max_frontier_size
+          ? '넓은 탐색 특성상 Queue 최대 크기가 더 큼'
+          : (d.max_frontier_size > b.max_frontier_size ? '깊은 분기 적재로 Stack 최대 크기가 더 큼' : '두 자료구조의 최대 대기열 크기 동일');
+
+      // Quantitative Comparison Bars
+      const rows = [
+        { label: '최종 탈출 경로 길이 (짧을수록 우수)', bfs: b.path_length, dfs: d.path_length, unit: '칸' },
+        { label: '총 방문 노드 수 (탐색 범위)', bfs: b.visited_count, dfs: d.visited_count, unit: '칸' },
+        { label: '최대 대기열 크기 (Queue vs Stack)', bfs: b.max_frontier_size, dfs: d.max_frontier_size, unit: '개' },
+        { label: '막다른 길 백트래킹 횟수', bfs: b.backtrack_count, dfs: d.backtrack_count, unit: '회' }
+      ];
+
+      document.getElementById('comparisonBars').innerHTML = rows.map(r => {
+        const mx = Math.max(r.bfs, r.dfs, 1);
+        const bw = Math.round((r.bfs / mx) * 100);
+        const dw = Math.round((r.dfs / mx) * 100);
+        return `
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-300">
+              <span>${r.label}</span>
+              <span class="font-mono"><span class="text-brand-blueGlow">${r.bfs}${r.unit}</span> vs <span class="text-brand-emeraldGlow">${r.dfs}${r.unit}</span></span>
+            </div>
+            <div class="space-y-1">
+              <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                <div class="h-full bg-brand-blue transition-all duration-300" style="width:${bw}%"></div>
+              </div>
+              <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                <div class="h-full bg-brand-emerald transition-all duration-300" style="width:${dw}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Feature Matrix Table
+      if (comp.feature_matrix && comp.feature_matrix.length) {
+        document.getElementById('featureTableBody').innerHTML = comp.feature_matrix.map(item => `
+          <tr>
+            <td class="py-2.5 pr-3 font-semibold text-slate-200 whitespace-nowrap">${item.feature}</td>
+            <td class="py-2.5 px-3">${item.bfs}</td>
+            <td class="py-2.5 pl-3">${item.dfs}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function renderInitialPreview() {
+      renderMazeGrid('bfsMazeGrid', 'BFS', null);
+      renderMazeGrid('dfsMazeGrid', 'DFS', null);
+      renderDataStructure('bfsQueueStrip', 'bfsQueueCount', [], 'BFS');
+      renderDataStructure('dfsStackStrip', 'dfsStackCount', [], 'DFS');
+      renderHistogram('bfsHistogram', [], 'BFS', 4);
+      renderHistogram('dfsHistogram', [], 'DFS', 4);
+      document.getElementById('stepScrubber').max = 0;
+      document.getElementById('stepScrubber').value = 0;
+      document.getElementById('globalStepBadge').textContent = '0 / 0';
+      document.getElementById('bfsPhaseTag').textContent = 'READY';
+      document.getElementById('dfsPhaseTag').textContent = 'READY';
+      document.getElementById('bfsTrace').textContent = '비교 실행 시작 버튼을 눌러 BFS(Queue) 탐색을 시작하세요.';
+      document.getElementById('dfsTrace').textContent = '비교 실행 시작 버튼을 눌러 DFS(Stack) 탐색을 시작하세요.';
+    }
+
+    // =========================================================================
+    // 6. Playback Controls
+    // =========================================================================
+    function getStepIntervalMs() {
+      // Speed 1 -> 520ms, Speed 10 -> 45ms
+      return Math.max(45, 570 - state.speed * 52);
+    }
+
+    function stopPlayback() {
+      state.playing = false;
+      if (state.timerId) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+      document.getElementById('btnPause').disabled = true;
+      document.getElementById('btnPause').textContent = '일시 정지';
+    }
+
+    function startPlaybackLoop() {
+      stopPlayback();
+      state.playing = true;
+      document.getElementById('btnPause').disabled = false;
+      state.timerId = setInterval(() => {
+        if (state.stepIndex >= state.maxStep) {
+          stopPlayback();
+          return;
+        }
+        state.stepIndex++;
+        renderStep(state.stepIndex);
+      }, getStepIntervalMs());
+    }
+
+    async function runComparison() {
+      stopPlayback();
+      const btnRun = document.getElementById('btnRun');
+      btnRun.disabled = true;
+      btnRun.textContent = '연산 중...';
+
+      try {
+        const data = await solveCurrentMaze();
+        state.result = data;
+        state.maxStep = Math.max(data.bfs.steps.length, data.dfs.steps.length) - 1;
+        state.stepIndex = 0;
+
+        const scrubber = document.getElementById('stepScrubber');
+        scrubber.max = state.maxStep;
+        scrubber.value = 0;
+
+        renderComparisonSummary(data);
+        renderStep(0);
+        startPlaybackLoop();
+      } finally {
+        btnRun.disabled = false;
+        btnRun.textContent = '비교 실행 시작';
+      }
+    }
+
+    // =========================================================================
+    // 7. Event Bindings
+    // =========================================================================
+    document.getElementById('btnToggleBackendPanel').addEventListener('click', () => {
+      document.getElementById('backendPanel').classList.toggle('hidden');
+    });
+
+    document.getElementById('btnSaveBackend').addEventListener('click', async () => {
+      const url = document.getElementById('backendUrlInput').value.trim().replace(/\/+$/, '');
+      state.backendUrl = url;
+      if (state.isGAS) {
+        await callGas('setApiBaseUrl', url);
+      } else {
+        localStorage.setItem('bfs_dfs_backend_url', url);
+      }
+      await checkHealth();
+    });
+
+    document.getElementById('presetSelect').addEventListener('change', (e) => {
+      const preset = LOCAL_PRESETS[e.target.value];
+      if (!preset) return;
+      stopPlayback();
+      state.maze = cloneMaze(preset);
+      state.result = null;
+      renderInitialPreview();
+    });
+
+    document.getElementById('btnRandomMaze').addEventListener('click', async () => {
+      stopPlayback();
+      state.maze = await requestRandomMaze();
+      state.result = null;
+      renderInitialPreview();
+    });
+
+    document.getElementById('btnEditMode').addEventListener('click', (e) => {
+      state.editMode = !state.editMode;
+      e.target.textContent = state.editMode ? '벽 편집: ON' : '벽 편집: OFF';
+      e.target.className = state.editMode
+        ? 'px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-amber text-slate-950 transition'
+        : 'px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-brand-border text-slate-300 transition';
+      if (state.result) renderStep(state.stepIndex);
+      else renderInitialPreview();
+    });
+
+    document.getElementById('speedRange').addEventListener('input', (e) => {
+      state.speed = Number(e.target.value);
+      document.getElementById('speedLabel').textContent = `${state.speed}x`;
+      if (state.playing) startPlaybackLoop();
+    });
+
+    document.getElementById('btnRun').addEventListener('click', runComparison);
+
+    document.getElementById('btnPause').addEventListener('click', () => {
+      if (state.playing) {
+        stopPlayback();
+        document.getElementById('btnPause').disabled = false;
+        document.getElementById('btnPause').textContent = '재개';
+      } else if (state.result && state.stepIndex < state.maxStep) {
+        startPlaybackLoop();
+      }
+    });
+
+    document.getElementById('btnStep').addEventListener('click', async () => {
+      stopPlayback();
+      if (!state.result) {
+        const data = await solveCurrentMaze();
+        state.result = data;
+        state.maxStep = Math.max(data.bfs.steps.length, data.dfs.steps.length) - 1;
+        state.stepIndex = 0;
+        document.getElementById('stepScrubber').max = state.maxStep;
+        renderComparisonSummary(data);
+        renderStep(0);
+        return;
+      }
+      if (state.stepIndex < state.maxStep) {
+        state.stepIndex++;
+        renderStep(state.stepIndex);
+      }
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      stopPlayback();
+      state.stepIndex = 0;
+      if (state.result) renderStep(0);
+      else renderInitialPreview();
+    });
+
+    document.getElementById('stepScrubber').addEventListener('input', (e) => {
+      stopPlayback();
+      state.stepIndex = Number(e.target.value);
+      renderStep(state.stepIndex);
+    });
+
+    document.getElementById('btnLogSheet').addEventListener('click', async () => {
+      if (!state.result) {
+        alert('먼저 비교 실행을 완료해 주세요.');
+        return;
+      }
+      if (!state.isGAS) {
+        alert('Google Apps Script 웹앱 환경에서 실행할 때 Google Sheets에 기록됩니다.');
+        return;
+      }
+      const b = state.result.bfs.summary;
+      const d = state.result.dfs.summary;
+      const res = await callGas('logBenchmarkToSheet', {
+        mazeName: state.maze.name,
+        size: `${state.maze.grid.length}x${state.maze.grid[0].length}`,
+        bfsPath: b.path_length,
+        bfsVisited: b.visited_count,
+        bfsMaxQueue: b.max_frontier_size,
+        bfsTimeMs: b.elapsed_ms,
+        dfsPath: d.path_length,
+        dfsVisited: d.visited_count,
+        dfsMaxStack: d.max_frontier_size,
+        dfsBacktracks: d.backtrack_count,
+        dfsTimeMs: d.elapsed_ms
+      });
+      alert(res.success ? res.message : res.error);
+    });
+
+    // Boot
+    renderInitialPreview();
+    initBackendConnection();
+  </script>
+</body>
+</html>

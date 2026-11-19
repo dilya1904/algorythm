@@ -1,0 +1,26 @@
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+.clasprc.json
+*sa-key*.json
+*credentials*.json
+service-account*.json
+
+# Virtual Environment
+algorithm-class-env/
+venv/
+.env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & Testing
+.pytest_cache/
+
+# VS Code workspace files (keep settings.json)
+.vscode/*
+!.vscode/settings.json
+
