@@ -64,7 +64,6 @@ jobs:
             --port=8080
           env_vars: |
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-            PORT=8080
 
       - name: Smoke Test Deployed Service
         run: |
