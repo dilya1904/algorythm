@@ -16,10 +16,15 @@ function doGet() {
 
 /**
  * Script Properties에서 저장된 FastAPI 백엔드 URL을 조회합니다.
+ * 미설정 시 Config.gs에 자동 등록된 Cloud Run URL을 기본값으로 반환합니다.
  * @returns {string}
  */
 function getApiBaseUrl() {
-  return PropertiesService.getScriptProperties().getProperty('API_BASE_URL') || '';
+  var propUrl = PropertiesService.getScriptProperties().getProperty('API_BASE_URL');
+  if (propUrl) {
+    return propUrl;
+  }
+  return (typeof CONFIG !== 'undefined' && CONFIG.DEFAULT_API_BASE_URL) ? CONFIG.DEFAULT_API_BASE_URL : '';
 }
 
 /**
