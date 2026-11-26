@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DijkstraLab — 다익스트라 네비게이션 길찾기 시각화</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'success': '#16A34A',
+            'success-container': '#DCFCE7',
+            'on-success-container': '#14532D',
+            'light-primary': '#0037B0',
+            'light-on-primary': '#FFFFFF',
+            'light-primary-container': '#1D4ED8',
+            'light-on-primary-container': '#CAD3FF',
+            'light-secondary': '#006A61',
+            'light-on-secondary': '#FFFFFF',
+            'light-secondary-container': '#86F2E4',
+            'light-on-secondary-container': '#006F66',
+            'light-tertiary': '#6B3700',
+            'light-on-tertiary': '#FFFFFF',
+            'light-tertiary-container': '#8D4B00',
+            'light-on-tertiary-container': '#FFCBA3',
+            'light-error': '#BA1A1A',
+            'light-on-error': '#FFFFFF',
+            'light-error-container': '#FFDAD6',
+            'light-on-error-container': '#93000A',
+            'light-background': '#F8F9FF',
+            'light-on-background': '#0D1C2E',
+            'light-surface': '#F8F9FF',
+            'light-surface-container-lowest': '#FFFFFF',
+            'light-surface-container-low': '#EFF4FF',
+            'light-surface-container': '#E6EEFF',
+            'light-surface-container-high': '#DCE9FF',
+            'light-surface-container-highest': '#D5E3FC',
+            'light-on-surface': '#0D1C2E',
+            'light-on-surface-variant': '#434655',
+            'light-outline': '#747686',
+            'light-outline-variant': '#C4C5D7',
+            'dark-primary': '#B7C4FF',
+            'dark-on-primary': '#002682',
+            'dark-primary-container': '#1D4ED8',
+            'dark-on-primary-container': '#CAD3FF',
+            'dark-secondary': '#6BD8CB',
+            'dark-on-secondary': '#003732',
+            'dark-secondary-container': '#29A195',
+            'dark-on-secondary-container': '#001D1A',
+            'dark-tertiary': '#FFB77D',
+            'dark-on-tertiary': '#4D2600',
+            'dark-tertiary-container': '#8D4B00',
+            'dark-on-tertiary-container': '#FFCBA3',
+            'dark-error': '#FFB4AB',
+            'dark-on-error': '#690005',
+            'dark-error-container': '#93000A',
+            'dark-on-error-container': '#FFDAD6',
+            'dark-background': '#051425',
+            'dark-on-background': '#D5E3FC',
+            'dark-surface': '#051425',
+            'dark-surface-container-lowest': '#010F20',
+            'dark-surface-container-low': '#0D1C2E',
+            'dark-surface-container': '#122032',
+            'dark-surface-container-high': '#1D2B3D',
+            'dark-surface-container-highest': '#283648',
+            'dark-on-surface': '#D5E3FC',
+            'dark-on-surface-variant': '#C4C5D7',
+            'dark-outline': '#8E90A0',
+            'dark-outline-variant': '#434655'
+          },
+          borderRadius: {
+            'sm': '4px',
+            'DEFAULT': '8px',
+            'md': '12px',
+            'lg': '16px',
+            'full': '9999px'
+          },
+          spacing: {
+            'gutter-xs': '4px',
+            'gutter-sm': '8px',
+            'gutter-md': '12px',
+            'gutter-lg': '16px',
+            'gutter-xl': '24px',
+            'page-margin': '16px'
+          },
+          fontFamily: {
+            'headline': ['"Red Hat Text"', 'sans-serif'],
+            'title': ['"Red Hat Text"', 'sans-serif'],
+            'body': ['"Instrument Sans"', 'sans-serif'],
+            'label': ['"Instrument Sans"', 'sans-serif'],
+            'mono': ['"Red Hat Mono"', 'monospace']
+          },
+          fontSize: {
+            'headline-md': ['18px', { lineHeight: '24px', letterSpacing: '-0.1px', fontWeight: '600' }],
+            'title-md': ['15px', { lineHeight: '20px', fontWeight: '600' }],
+            'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+            'body-sm': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+            'label-lg': ['14px', { lineHeight: '20px', letterSpacing: '0.1px', fontWeight: '600' }],
+            'label-sm': ['11px', { lineHeight: '16px', letterSpacing: '0.4px', fontWeight: '600' }],
+            'mono-lg': ['22px', { lineHeight: '28px', letterSpacing: '-0.5px', fontWeight: '600' }],
+            'mono-sm': ['12px', { lineHeight: '16px', fontWeight: '500' }]
+          },
+          transitionDuration: {
+            'state-change': '100ms',
+            'step-pulse': '220ms'
+          }
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Red+Hat+Mono:wght@500;600&family=Red+Hat+Text:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet" />
+  <style>
+    .material-symbols-outlined {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      line-height: 1 !important;
+      overflow: hidden;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    @keyframes dashFlow {
+      to { stroke-dashoffset: -24; }
+    }
+    .route-dash-animate {
+      stroke-dasharray: 8 4;
+      animation: dashFlow 0.9s linear infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .route-dash-animate { animation: none; }
+    }
+  </style>
+</head>
+<body class="bg-light-background dark:bg-dark-background text-light-on-background dark:text-dark-on-background font-body antialiased">
+  <div class="min-h-screen flex flex-col max-w-[1440px] mx-auto px-page-margin py-gutter-lg gap-gutter-lg">
+
+    <!-- 상단 헤더: DijkstraLab + 서버 연결 상태 + 연결하기/연결끊기 + 맵 제어 + 실행 버튼 + 테마 전환 -->
+    <header class="flex flex-col gap-gutter-md px-gutter-lg py-gutter-md rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-low dark:bg-dark-surface-container-low">
+      <div class="flex flex-wrap items-center justify-between gap-gutter-md">
+        <div class="flex items-center gap-gutter-md">
+          <div class="flex items-center justify-center w-9 h-9 rounded bg-light-primary-container text-light-on-primary-container">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">route</span>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-gutter-sm">
+              <h1 class="font-headline text-headline-md text-light-on-surface dark:text-dark-on-surface">DijkstraLab</h1>
+              <span class="font-mono text-mono-sm px-gutter-sm py-gutter-xs rounded bg-light-surface-container-high dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant">
+                @code.gs ↔ @main.py
+              </span>
+            </div>
+            <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+              그래프 탐색 기반 네비게이션 최단 경로 알고리즘 실시간 시각화
+            </p>
+          </div>
+        </div>
+
+        <!-- 서버 연결 배지 & 연결하기/연결끊기 버튼 -->
+        <div class="flex flex-wrap items-center gap-gutter-sm">
+          <span id="server-status-badge" role="status" class="inline-flex items-center gap-gutter-xs px-gutter-md py-gutter-xs rounded-full bg-light-surface-container-high dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant font-label text-label-sm">
+            <span id="server-status-dot" class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+            <span id="server-status-text">Python 서버 연결 확인 중...</span>
+            <span id="server-latency" class="font-mono text-[11px] opacity-75"></span>
+          </span>
+
+          <button id="btn-connect" type="button" disabled class="px-gutter-md py-gutter-xs rounded bg-success text-white font-label text-label-sm transition-colors duration-state-change hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed">
+            연결하기
+          </button>
+          <button id="btn-disconnect" type="button" disabled class="px-gutter-md py-gutter-xs rounded bg-light-error dark:bg-dark-error-container text-white font-label text-label-sm transition-colors duration-state-change hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed">
+            연결끊기
+          </button>
+          <button id="btn-toggle-config" type="button" class="px-gutter-sm py-gutter-xs rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface font-label text-label-sm hover:bg-light-surface-container-high dark:hover:bg-dark-surface-container-high">
+            서버 URL 설정
+          </button>
+
+          <button id="btn-theme-toggle" type="button" aria-label="다크/라이트 모드 전환" class="inline-flex items-center justify-center w-9 h-9 rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface hover:bg-light-surface-container-high dark:hover:bg-dark-surface-container-high">
+            <span id="theme-icon" class="material-symbols-outlined text-[18px]" aria-hidden="true">light_mode</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 서버 URL 설정 패널 (PropertiesService: PYTHON_SERVER_URL) -->
+      <div id="server-config-panel" class="hidden flex flex-wrap items-center gap-gutter-sm pt-gutter-sm border-t border-light-outline-variant/60 dark:border-dark-outline-variant/60 text-xs">
+        <span class="font-mono text-light-on-surface-variant dark:text-dark-on-surface-variant">PYTHON_SERVER_URL:</span>
+        <input id="server-url-input" type="text" value="" placeholder="Python 서버 URL을 입력하세요 (PropertiesService 저장)" class="flex-1 min-w-[260px] rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest px-gutter-md py-gutter-xs font-mono text-mono-sm text-light-on-surface dark:text-dark-on-surface" />
+        <button id="btn-save-url" type="button" class="px-gutter-md py-gutter-xs rounded bg-light-primary dark:bg-dark-primary text-light-on-primary dark:text-dark-on-primary font-label text-label-sm">
+          저장 후 연결
+        </button>
+      </div>
+
+      <!-- 맵 조회 / 랜덤 생성 / 알고리즘 제어 바 -->
+      <div class="flex flex-wrap items-center justify-between gap-gutter-sm pt-gutter-sm border-t border-light-outline-variant/60 dark:border-dark-outline-variant/60">
+        <div class="flex flex-wrap items-center gap-gutter-sm">
+          <button id="btn-load-presets" type="button" disabled class="px-gutter-md py-gutter-xs rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface font-label text-label-sm hover:bg-light-surface-container-high dark:hover:bg-dark-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed">
+            맵 목록 조회
+          </button>
+          <select id="preset-select" disabled class="rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest text-light-on-surface dark:text-dark-on-surface font-body text-body-sm px-gutter-md py-gutter-xs disabled:opacity-40 disabled:cursor-not-allowed">
+            <option value="">-- 조회된 맵 없음 --</option>
+          </select>
+          <button id="btn-random-graph" type="button" disabled class="px-gutter-md py-gutter-xs rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface font-label text-label-sm hover:bg-light-surface-container-high dark:hover:bg-dark-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed">
+            랜덤 맵 생성
+          </button>
+        </div>
+
+        <div class="flex items-center gap-gutter-sm" role="group" aria-label="알고리즘 실행 제어">
+          <button id="btn-start" type="button" disabled class="inline-flex items-center justify-center gap-gutter-xs px-gutter-md py-gutter-xs rounded bg-light-primary dark:bg-dark-primary text-light-on-primary dark:text-dark-on-primary font-label text-label-lg transition-colors duration-state-change hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">play_arrow</span>
+            <span>시작</span>
+          </button>
+          <button id="btn-pause" type="button" disabled class="inline-flex items-center justify-center gap-gutter-xs px-gutter-md py-gutter-xs rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface font-label text-label-lg disabled:opacity-40 disabled:cursor-not-allowed">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">pause</span>
+            <span>정지</span>
+          </button>
+          <button id="btn-reset" type="button" disabled class="inline-flex items-center justify-center gap-gutter-xs px-gutter-md py-gutter-xs rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface font-label text-label-lg disabled:opacity-40 disabled:cursor-not-allowed">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
+            <span>초기화</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 메인 3분할 Split-Screen (Empty Initial State) -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg flex-1">
+
+      <!-- 1순위 상단 패널: 네비게이션 길찾기 화면 (Primary) -->
+      <article class="lg:col-span-12 flex flex-col rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-low dark:bg-dark-surface-container-low overflow-hidden">
+        <header class="flex flex-wrap items-center justify-between gap-gutter-sm px-gutter-lg py-gutter-md border-b border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container">
+          <div class="flex items-center gap-gutter-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-light-primary dark:bg-dark-primary" aria-hidden="true"></span>
+            <h2 class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">네비게이션 길찾기 화면</h2>
+            <span id="nav-route-badge" class="font-label text-label-sm px-gutter-sm py-gutter-xs rounded bg-light-surface-container-high dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant">
+              데이터 없음
+            </span>
+          </div>
+          <div class="flex items-center gap-gutter-md">
+            <span id="nav-step-badge" class="font-mono text-mono-sm tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">STEP 00 / 00</span>
+            <span id="nav-action-log" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">조회/실행 후 결과가 표시됩니다.</span>
+          </div>
+        </header>
+
+        <div class="relative p-gutter-lg bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest">
+          <div id="nav-empty-state" class="h-[260px] md:h-[300px] flex flex-col items-center justify-center gap-gutter-xs text-center text-light-on-surface-variant dark:text-dark-on-surface-variant rounded border border-dashed border-light-outline-variant dark:border-dark-outline-variant">
+            <span class="material-symbols-outlined text-[28px] opacity-60">map</span>
+            <p class="font-title text-title-md">데이터가 없습니다</p>
+            <p class="font-body text-body-sm opacity-80">Python 서버 연결 후 [맵 목록 조회] 또는 [랜덤 맵 생성]을 클릭하세요.</p>
+          </div>
+
+          <svg id="navigation-svg" viewBox="0 0 960 300" class="hidden w-full h-[260px] md:h-[300px] select-none" role="img" aria-label="네비게이션 도로망 최단 경로 시각화">
+            <defs>
+              <pattern id="navGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="0.6" class="text-light-outline-variant/40 dark:text-dark-outline-variant/40"></path>
+              </pattern>
+            </defs>
+            <rect width="960" height="300" fill="url(#navGrid)" rx="8"></rect>
+            <g id="nav-edges-layer"></g>
+            <g id="nav-nodes-layer"></g>
+          </svg>
+
+          <div class="flex flex-wrap items-center justify-between gap-gutter-md mt-gutter-md pt-gutter-sm border-t border-light-outline-variant/60 dark:border-dark-outline-variant/60">
+            <div class="flex flex-wrap items-center gap-gutter-lg">
+              <div class="flex items-center gap-gutter-xs"><span class="w-4 h-1 rounded-full bg-light-outline-variant dark:bg-dark-outline-variant"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">미탐색 도로</span></div>
+              <div class="flex items-center gap-gutter-xs"><span class="w-4 h-1 rounded-full bg-light-secondary dark:bg-dark-secondary"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">탐색 완료 구간</span></div>
+              <div class="flex items-center gap-gutter-xs"><span class="w-4 h-1 rounded-full bg-light-tertiary dark:bg-dark-tertiary"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">현재 완화(Relaxation) 검사</span></div>
+              <div class="flex items-center gap-gutter-xs"><span class="w-4 h-1.5 rounded-full bg-light-primary dark:bg-dark-primary"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">확정 최단 경로</span></div>
+            </div>
+            <span id="nav-route-summary" class="font-mono text-mono-sm tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">데이터가 없습니다</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 하단 좌측 패널: 그래프 도형 G = (V, E) (Secondary Teal) -->
+      <article class="lg:col-span-6 flex flex-col rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-low dark:bg-dark-surface-container-low overflow-hidden">
+        <header class="flex items-center justify-between gap-gutter-sm px-gutter-lg py-gutter-md border-b border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container">
+          <div class="flex items-center gap-gutter-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-light-secondary dark:bg-dark-secondary"></span>
+            <h2 class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">네비게이션 그래프 도형 G = (V, E)</h2>
+          </div>
+          <span id="graph-size-badge" class="font-mono text-mono-sm text-light-secondary dark:text-dark-secondary">|V|=0, |E|=0</span>
+        </header>
+
+        <div class="p-gutter-lg bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest flex-1 flex flex-col justify-between gap-gutter-md">
+          <div id="graph-empty-state" class="h-[250px] md:h-[280px] flex flex-col items-center justify-center gap-gutter-xs text-center text-light-on-surface-variant dark:text-dark-on-surface-variant rounded border border-dashed border-light-outline-variant dark:border-dark-outline-variant">
+            <p class="font-title text-title-md">데이터가 없습니다</p>
+            <p class="font-body text-body-sm opacity-80">그래프 조회 후 정점과 간선이 표시됩니다.</p>
+          </div>
+          <svg id="graph-svg" viewBox="0 0 540 280" class="hidden w-full h-[250px] md:h-[280px] select-none" role="img" aria-label="가중치 무방향 그래프 정점 및 간선 상태 도형">
+            <g id="graph-edges-layer"></g>
+            <g id="graph-nodes-layer"></g>
+          </svg>
+
+          <div class="flex flex-wrap items-center justify-between gap-gutter-sm pt-gutter-sm border-t border-light-outline-variant/60 dark:border-dark-outline-variant/60">
+            <div class="flex flex-wrap items-center gap-gutter-md">
+              <div class="flex items-center gap-gutter-xs"><span class="w-2.5 h-2.5 rounded-full border border-light-outline dark:border-dark-outline bg-light-surface-container-high dark:bg-dark-surface-container-high"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">미방문</span></div>
+              <div class="flex items-center gap-gutter-xs"><span class="w-2.5 h-2.5 rounded-full bg-light-secondary dark:bg-dark-secondary"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">확정 정점 (S)</span></div>
+              <div class="flex items-center gap-gutter-xs"><span class="w-2.5 h-2.5 rounded-full bg-light-tertiary dark:bg-dark-tertiary"></span><span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">현재 기준 (u)</span></div>
+            </div>
+            <span id="pq-preview" class="font-mono text-mono-sm tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">PQ: []</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- 하단 우측 패널: 다익스트라 수행 상태 표 (Tertiary Amber) -->
+      <article class="lg:col-span-6 flex flex-col rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-low dark:bg-dark-surface-container-low overflow-hidden">
+        <header class="flex items-center justify-between gap-gutter-sm px-gutter-lg py-gutter-md border-b border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container">
+          <div class="flex items-center gap-gutter-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-light-tertiary dark:bg-dark-tertiary"></span>
+            <h2 class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">다익스트라 수행 상태 표</h2>
+          </div>
+          <span class="font-mono text-mono-sm text-light-tertiary dark:text-dark-tertiary">d[v] = min(d[v], d[u] + w(u,v))</span>
+        </header>
+
+        <div class="flex-1 overflow-x-auto bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-light-surface-container-high dark:bg-dark-surface-container-high border-b border-light-outline-variant dark:border-dark-outline-variant">
+              <tr>
+                <th scope="col" class="px-gutter-md py-gutter-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">정점 (Node)</th>
+                <th scope="col" class="px-gutter-md py-gutter-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">최단 거리 d[v]</th>
+                <th scope="col" class="px-gutter-md py-gutter-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">이전 정점 prev</th>
+                <th scope="col" class="px-gutter-md py-gutter-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">탐색 상태</th>
+              </tr>
+            </thead>
+            <tbody id="dijkstra-table-body" class="divide-y divide-light-outline-variant dark:divide-dark-outline-variant"></tbody>
+          </table>
+        </div>
+      </article>
+    </main>
+
+    <!-- 하단 메타데이터 요약 카드 3종 (Empty Initial State) -->
+    <section aria-label="알고리즘 실행 메타데이터" class="grid grid-cols-1 md:grid-cols-3 gap-gutter-lg items-stretch">
+      <article class="h-full flex items-center justify-between gap-gutter-lg rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container px-gutter-lg py-gutter-md">
+        <div class="flex flex-col gap-gutter-xs">
+          <span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">탐색 연산 횟수 (Relaxation Ops)</span>
+          <span id="metric-ops" class="font-mono text-mono-lg tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">데이터 없음</span>
+        </div>
+        <div class="flex items-center justify-center w-10 h-10 rounded bg-light-secondary-container/30 dark:bg-dark-secondary-container/25 text-light-secondary dark:text-dark-secondary">
+          <span class="material-symbols-outlined text-[20px]">analytics</span>
+        </div>
+      </article>
+
+      <article class="h-full flex items-center justify-between gap-gutter-lg rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container px-gutter-lg py-gutter-md">
+        <div class="flex flex-col gap-gutter-xs">
+          <span class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">실시간 소요 시간 (Elapsed Time)</span>
+          <span id="metric-time" class="font-mono text-mono-lg tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">데이터 없음</span>
+        </div>
+        <div class="flex items-center justify-center w-10 h-10 rounded bg-light-tertiary-container/20 dark:bg-dark-tertiary-container/30 text-light-tertiary dark:text-dark-tertiary">
+          <span class="material-symbols-outlined text-[20px]">timer</span>
+        </div>
+      </article>
+
+      <article class="h-full flex items-center justify-between gap-gutter-lg rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container px-gutter-lg py-gutter-md">
+        <div class="flex flex-col gap-gutter-xs">
+          <span id="metric-cost-label" class="font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">도착지 최단 비용</span>
+          <span id="metric-cost" class="font-mono text-mono-lg tabular-nums text-light-on-surface-variant dark:text-dark-on-surface-variant">데이터 없음</span>
+        </div>
+        <div class="flex items-center justify-center w-10 h-10 rounded bg-light-primary-container/20 dark:bg-dark-primary-container/30 text-light-primary dark:text-dark-primary">
+          <span class="material-symbols-outlined text-[20px]">flag</span>
+        </div>
+      </article>
+    </section>
+
+  </div>
+
+  <script>
+    const appState = {
+      isGAS: typeof google !== 'undefined' && google.script && google.script.run,
+      connected: false,
+      localUrl: '',
+      presets: [],
+      graph: null,
+      trace: [],
+      currentStep: 0,
+      timerId: null
+    };
+
+    function callGas(fn, ...args) {
+      return new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args);
+      });
+    }
+
+    function createSvgEl(tag, attrs = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    }
+
+    function isEdgeInPath(u, v, path) {
+      for (let i = 0; i < path.length - 1; i++) {
+        if ((path[i] === u && path[i + 1] === v) || (path[i] === v && path[i + 1] === u)) return true;
+      }
+      return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Connection State Machine ($gas-python-startup-link)
+    // -------------------------------------------------------------------------
+    function applyConnectionUI(status, message, latencyMs) {
+      appState.connected = status === 'connected';
+      const badge = document.getElementById('server-status-badge');
+      const dot = document.getElementById('server-status-dot');
+      const txt = document.getElementById('server-status-text');
+      const lat = document.getElementById('server-latency');
+      const btnConnect = document.getElementById('btn-connect');
+      const btnDisconnect = document.getElementById('btn-disconnect');
+
+      txt.textContent = message || '';
+      lat.textContent = status === 'connected' && typeof latencyMs === 'number' ? `(${latencyMs} ms)` : '';
+
+      if (status === 'connecting') {
+        badge.className = 'inline-flex items-center gap-gutter-xs px-gutter-md py-gutter-xs rounded-full bg-light-surface-container-high dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant font-label text-label-sm';
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = true;
+      } else if (status === 'connected') {
+        badge.className = 'inline-flex items-center gap-gutter-xs px-gutter-md py-gutter-xs rounded-full bg-success-container text-on-success-container font-label text-label-sm';
+        dot.className = 'w-2 h-2 rounded-full bg-success animate-pulse';
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = false;
+      } else {
+        badge.className = status === 'disconnected'
+          ? 'inline-flex items-center gap-gutter-xs px-gutter-md py-gutter-xs rounded-full bg-light-surface-container-high dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant font-label text-label-sm'
+          : 'inline-flex items-center gap-gutter-xs px-gutter-md py-gutter-xs rounded-full bg-light-error-container dark:bg-dark-error-container text-light-on-error-container dark:text-dark-on-error-container font-label text-label-sm';
+        dot.className = status === 'disconnected' ? 'w-2 h-2 rounded-full bg-slate-500' : 'w-2 h-2 rounded-full bg-light-error dark:bg-dark-error';
+        btnConnect.disabled = false;
+        btnDisconnect.disabled = true;
+      }
+
+      syncControls();
+    }
+
+    function syncControls() {
+      const c = appState.connected;
+      const hasGraph = !!appState.graph;
+      const hasTrace = appState.trace.length > 0;
+      const isRunning = appState.timerId !== null;
+
+      document.getElementById('btn-load-presets').disabled = !c;
+      document.getElementById('btn-random-graph').disabled = !c;
+      document.getElementById('preset-select').disabled = !c || appState.presets.length === 0;
+      document.getElementById('btn-start').disabled = !c || !hasGraph || (isRunning && appState.currentStep < appState.trace.length - 1);
+      document.getElementById('btn-pause').disabled = !isRunning;
+      document.getElementById('btn-reset').disabled = !hasGraph && !hasTrace;
+    }
+
+    async function connectServer() {
+      applyConnectionUI('connecting', 'Python 서버 연결 확인 중...');
+      try {
+        if (appState.isGAS) {
+          const res = await callGas('connectPythonServer');
+          applyConnectionUI(res.connected ? 'connected' : (res.status || 'error'), res.message, res.latencyMs);
+        } else {
+          const url = appState.localUrl.trim().replace(/\/+$/, '');
+          if (!url) {
+            applyConnectionUI('unconfigured', 'PYTHON_SERVER_URL이 설정되지 않았습니다.');
+            return;
+          }
+          const t0 = performance.now();
+          const resp = await fetch(url + '/health');
+          const ms = Math.round(performance.now() - t0);
+          applyConnectionUI(resp.ok ? 'connected' : 'error', resp.ok ? 'Python 서버 연결됨' : `응답 코드 ${resp.status}`, ms);
+        }
+      } catch (err) {
+        applyConnectionUI('unreachable', err && err.message ? err.message : 'Python 서버 연결 실패');
+      }
+    }
+
+    async function disconnectServer() {
+      stopAnimation();
+      if (appState.isGAS) {
+        try {
+          const res = await callGas('disconnectPythonServer');
+          applyConnectionUI(res.status || 'disconnected', res.message || 'Python 서버 연결이 끊어졌습니다.', 0);
+          return;
+        } catch (err) {}
+      }
+      applyConnectionUI('disconnected', 'Python 서버 연결이 끊어졌습니다.', 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Backend API Calls (Blocked When Disconnected)
+    // -------------------------------------------------------------------------
+    async function loadPresets() {
+      if (!appState.connected) return;
+      const btn = document.getElementById('btn-load-presets');
+      btn.disabled = true;
+      btn.textContent = '조회 중...';
+      try {
+        let presets = [];
+        if (appState.isGAS) {
+          const res = await callGas('fetchGraphPresetsFromBackend');
+          if (!res || !res.success) throw new Error((res && res.error) || '맵 목록 조회 실패');
+          presets = (res.data && Array.isArray(res.data.presets)) ? res.data.presets : [];
+        } else {
+          const resp = await fetch(appState.localUrl.replace(/\/+$/, '') + '/graph/presets');
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const json = await resp.json();
+          presets = Array.isArray(json.presets) ? json.presets : [];
+        }
+        appState.presets = presets;
+        const select = document.getElementById('preset-select');
+        select.innerHTML = presets.length
+          ? '<option value="">-- 맵을 선택하세요 --</option>' + presets.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+          : '<option value="">-- 조회된 맵 없음 --</option>';
+      } catch (err) {
+        applyConnectionUI('error', `맵 조회 실패: ${err.message || err}`);
+      } finally {
+        btn.textContent = '맵 목록 조회';
+        syncControls();
+      }
+    }
+
+    async function generateRandomGraph() {
+      if (!appState.connected) return;
+      const btn = document.getElementById('btn-random-graph');
+      btn.disabled = true;
+      btn.textContent = '생성 중...';
+      try {
+        let graph = null;
+        if (appState.isGAS) {
+          const res = await callGas('generateGraphFromBackend', 7);
+          if (!res || !res.success) throw new Error((res && res.error) || '랜덤 맵 생성 실패');
+          graph = res.data && res.data.graph ? res.data.graph : null;
+        } else {
+          const resp = await fetch(appState.localUrl.replace(/\/+$/, '') + '/graph/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ node_count: 7 })
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const json = await resp.json();
+          graph = json && json.graph ? json.graph : null;
+        }
+        stopAnimation();
+        appState.graph = graph;
+        appState.trace = [];
+        appState.currentStep = 0;
+        document.getElementById('preset-select').value = '';
+        if (graph) renderGraphPreviewOnly();
+        else renderEmptyState();
+      } catch (err) {
+        applyConnectionUI('error', `맵 생성 실패: ${err.message || err}`);
+      } finally {
+        btn.textContent = '랜덤 맵 생성';
+        syncControls();
+      }
+    }
+
+    async function solveDijkstra() {
+      if (!appState.connected || !appState.graph) throw new Error('연결되지 않았거나 맵이 없습니다.');
+      const payload = {
+        graph_name: appState.graph.name,
+        nodes: appState.graph.nodes,
+        edges: appState.graph.edges,
+        start: appState.graph.start,
+        target: appState.graph.target
+      };
+      if (appState.isGAS) {
+        const res = await callGas('solveDijkstraFromBackend', payload);
+        if (!res || !res.success || !res.data || !res.data.data) {
+          throw new Error((res && res.error) || '다익스트라 실행 실패');
+        }
+        return res.data.data;
+      }
+      const resp = await fetch(appState.localUrl.replace(/\/+$/, '') + '/dijkstra/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (!json || !json.data) throw new Error('응답 데이터가 비어 있습니다.');
+      return json.data;
+    }
+
+    // -------------------------------------------------------------------------
+    // Renderers (Empty State + DijkstraLab 3-Panel + Telemetry)
+    // -------------------------------------------------------------------------
+    function renderEmptyState() {
+      document.getElementById('nav-empty-state').classList.remove('hidden');
+      document.getElementById('navigation-svg').classList.add('hidden');
+      document.getElementById('graph-empty-state').classList.remove('hidden');
+      document.getElementById('graph-svg').classList.add('hidden');
+      document.getElementById('nav-route-badge').textContent = '데이터 없음';
+      document.getElementById('nav-step-badge').textContent = 'STEP 00 / 00';
+      document.getElementById('nav-action-log').textContent = '조회/실행 후 결과가 표시됩니다.';
+      document.getElementById('nav-route-summary').textContent = '데이터가 없습니다';
+      document.getElementById('graph-size-badge').textContent = '|V|=0, |E|=0';
+      document.getElementById('pq-preview').textContent = 'PQ: []';
+      document.getElementById('dijkstra-table-body').innerHTML =
+        '<tr><td colspan="4" class="px-gutter-md py-8 text-center font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">데이터가 없습니다. 맵 조회 후 [시작]을 눌러 실행하세요.</td></tr>';
+      document.getElementById('metric-ops').textContent = '데이터 없음';
+      document.getElementById('metric-time').textContent = '데이터 없음';
+      document.getElementById('metric-cost').textContent = '데이터 없음';
+      document.getElementById('metric-cost-label').textContent = '도착지 최단 비용';
+      syncControls();
+    }
+
+    function renderGraphPreviewOnly() {
+      const g = appState.graph;
+      const startNode = g.nodes.find(n => n.id === g.start);
+      const targetNode = g.nodes.find(n => n.id === g.target);
+      const emptyDistances = Object.fromEntries(g.nodes.map(n => [n.id, null]));
+      const emptyPred = Object.fromEntries(g.nodes.map(n => [n.id, null]));
+      const idleSnap = {
+        stepIndex: 0,
+        currentNode: null,
+        relaxingNeighbors: [],
+        distances: emptyDistances,
+        predecessors: emptyPred,
+        settled: [],
+        operations: 0,
+        elapsedMs: 0,
+        actionLog: '[시작] 버튼을 눌러 다익스트라 탐색을 실행하세요.',
+        pqPreview: 'Empty',
+        shortestPath: []
+      };
+
+      document.getElementById('nav-empty-state').classList.add('hidden');
+      document.getElementById('navigation-svg').classList.remove('hidden');
+      document.getElementById('graph-empty-state').classList.add('hidden');
+      document.getElementById('graph-svg').classList.remove('hidden');
+      document.getElementById('nav-route-badge').textContent =
+        `출발: ${g.start} (${startNode ? startNode.label : ''}) → 도착: ${g.target} (${targetNode ? targetNode.label : ''})`;
+      document.getElementById('graph-size-badge').textContent = `|V|=${g.nodes.length}, |E|=${g.edges.length}`;
+      document.getElementById('metric-cost-label').textContent = `도착지 최단 비용 d[${g.target}]`;
+
+      renderNavigationMap(idleSnap, 0);
+      renderGraphTopology(idleSnap);
+      renderTable(idleSnap);
+      document.getElementById('metric-ops').textContent = '실행 대기';
+      document.getElementById('metric-time').textContent = '실행 대기';
+      document.getElementById('metric-cost').textContent = '실행 대기';
+      syncControls();
+    }
+
+    function renderNavigationMap(snap, totalSteps) {
+      const g = appState.graph;
+      const edgesLayer = document.getElementById('nav-edges-layer');
+      const nodesLayer = document.getElementById('nav-nodes-layer');
+      edgesLayer.innerHTML = '';
+      nodesLayer.innerHTML = '';
+
+      const nodeMap = Object.fromEntries(g.nodes.map(n => [n.id, n]));
+      const settledSet = new Set(snap.settled || []);
+
+      g.edges.forEach(e => {
+        const a = nodeMap[e.u], b = nodeMap[e.v];
+        const onFinalPath = snap.shortestPath.length > 1 && isEdgeInPath(e.u, e.v, snap.shortestPath);
+        const isRelaxing = snap.currentNode &&
+          ((e.u === snap.currentNode && snap.relaxingNeighbors.includes(e.v)) ||
+           (e.v === snap.currentNode && snap.relaxingNeighbors.includes(e.u)));
+        const isSettled = settledSet.has(e.u) && settledSet.has(e.v);
+
+        let strokeClass = 'text-light-outline-variant dark:text-dark-outline-variant';
+        let strokeWidth = '4';
+        if (onFinalPath) { strokeClass = 'text-light-primary dark:text-dark-primary route-dash-animate'; strokeWidth = '6'; }
+        else if (isRelaxing) { strokeClass = 'text-light-tertiary dark:text-dark-tertiary route-dash-animate'; strokeWidth = '5'; }
+        else if (isSettled) { strokeClass = 'text-light-secondary dark:text-dark-secondary'; strokeWidth = '4'; }
+
+        edgesLayer.appendChild(createSvgEl('line', {
+          x1: a.navX, y1: a.navY, x2: b.navX, y2: b.navY,
+          stroke: 'currentColor', 'stroke-width': strokeWidth, 'stroke-linecap': 'round', class: strokeClass
+        }));
+
+        const mx = (a.navX + b.navX) / 2, my = (a.navY + b.navY) / 2;
+        edgesLayer.appendChild(createSvgEl('rect', {
+          x: mx - 13, y: my - 10, width: 26, height: 20, rx: 6,
+          fill: 'currentColor', class: 'text-light-surface-container-high dark:text-dark-surface-container-high'
+        }));
+        const lbl = createSvgEl('text', {
+          x: mx, y: my + 4, 'text-anchor': 'middle', fill: 'currentColor',
+          'font-size': '11', 'font-family': 'Red Hat Mono, monospace', 'font-weight': '600',
+          class: 'text-light-on-surface dark:text-dark-on-surface'
+        });
+        lbl.textContent = e.w;
+        edgesLayer.appendChild(lbl);
+      });
+
+      g.nodes.forEach(n => {
+        const isCurrent = snap.currentNode === n.id;
+        const isSettled = settledSet.has(n.id);
+        const isRelaxing = snap.relaxingNeighbors.includes(n.id);
+        const inFinal = snap.shortestPath.includes(n.id);
+
+        let circleClass = 'text-light-surface-container-high dark:text-dark-surface-container-high stroke-light-outline dark:stroke-dark-outline';
+        let textClass = 'text-light-on-surface dark:text-dark-on-surface';
+        if (inFinal && snap.shortestPath.length > 1) {
+          circleClass = 'text-light-primary dark:text-dark-primary stroke-light-on-primary dark:stroke-dark-on-primary';
+          textClass = 'text-light-on-primary dark:text-dark-on-primary';
+        } else if (isCurrent) {
+          circleClass = 'text-light-tertiary dark:text-dark-tertiary stroke-light-on-tertiary dark:stroke-dark-on-tertiary';
+          textClass = 'text-light-on-tertiary dark:text-dark-on-tertiary';
+        } else if (isRelaxing) {
+          circleClass = 'text-light-tertiary-container dark:text-dark-tertiary-container stroke-light-tertiary dark:stroke-dark-tertiary';
+          textClass = 'text-light-on-tertiary-container dark:text-dark-on-tertiary-container';
+        } else if (isSettled) {
+          circleClass = 'text-light-secondary dark:text-dark-secondary stroke-light-on-secondary dark:stroke-dark-on-secondary';
+          textClass = 'text-light-on-secondary dark:text-dark-on-secondary';
+        }
+
+        const grp = createSvgEl('g');
+        grp.appendChild(createSvgEl('circle', { cx: n.navX, cy: n.navY, r: 19, fill: 'currentColor', 'stroke-width': '2.5', class: circleClass }));
+        const idTxt = createSvgEl('text', { x: n.navX, y: n.navY + 5, 'text-anchor': 'middle', fill: 'currentColor', 'font-size': '13', 'font-family': 'Red Hat Mono, monospace', 'font-weight': '700', class: textClass });
+        idTxt.textContent = n.id;
+        const subTxt = createSvgEl('text', { x: n.navX, y: n.navY + 34, 'text-anchor': 'middle', fill: 'currentColor', 'font-size': '11', 'font-family': 'Instrument Sans, sans-serif', 'font-weight': '600', class: 'text-light-on-surface-variant dark:text-dark-on-surface-variant' });
+        subTxt.textContent = n.label;
+        grp.appendChild(idTxt);
+        grp.appendChild(subTxt);
+        nodesLayer.appendChild(grp);
+      });
+
+      document.getElementById('nav-step-badge').textContent =
+        `STEP ${String(snap.stepIndex).padStart(2, '0')} / ${String(totalSteps).padStart(2, '0')}`;
+      document.getElementById('nav-action-log').textContent = snap.actionLog;
+
+      if (snap.shortestPath.length > 1) {
+        document.getElementById('nav-route-summary').textContent =
+          `최단 경로 확정: ${snap.shortestPath.join(' → ')} (총 비용 ${snap.distances[g.target]})`;
+      } else if (snap.currentNode) {
+        document.getElementById('nav-route-summary').textContent =
+          `현재 탐색 정점: ${snap.currentNode} (누적 거리 ${snap.distances[snap.currentNode]})`;
+      } else {
+        document.getElementById('nav-route-summary').textContent = '탐색 대기 중 ([시작] 버튼 클릭)';
+      }
+    }
+
+    function renderGraphTopology(snap) {
+      const g = appState.graph;
+      const edgesLayer = document.getElementById('graph-edges-layer');
+      const nodesLayer = document.getElementById('graph-nodes-layer');
+      edgesLayer.innerHTML = '';
+      nodesLayer.innerHTML = '';
+
+      const nodeMap = Object.fromEntries(g.nodes.map(n => [n.id, n]));
+      const settledSet = new Set(snap.settled || []);
+
+      g.edges.forEach(e => {
+        const a = nodeMap[e.u], b = nodeMap[e.v];
+        const onFinalPath = snap.shortestPath.length > 1 && isEdgeInPath(e.u, e.v, snap.shortestPath);
+        const isRelaxing = snap.currentNode &&
+          ((e.u === snap.currentNode && snap.relaxingNeighbors.includes(e.v)) ||
+           (e.v === snap.currentNode && snap.relaxingNeighbors.includes(e.u)));
+        const isSettled = settledSet.has(e.u) && settledSet.has(e.v);
+
+        let strokeClass = 'text-light-outline-variant dark:text-dark-outline-variant', width = '2';
+        if (onFinalPath) { strokeClass = 'text-light-primary dark:text-dark-primary'; width = '3.5'; }
+        else if (isRelaxing) { strokeClass = 'text-light-tertiary dark:text-dark-tertiary'; width = '3'; }
+        else if (isSettled) { strokeClass = 'text-light-secondary dark:text-dark-secondary'; width = '2.5'; }
+
+        edgesLayer.appendChild(createSvgEl('line', { x1: a.graphX, y1: a.graphY, x2: b.graphX, y2: b.graphY, stroke: 'currentColor', 'stroke-width': width, class: strokeClass }));
+        const mx = (a.graphX + b.graphX) / 2, my = (a.graphY + b.graphY) / 2;
+        edgesLayer.appendChild(createSvgEl('circle', { cx: mx, cy: my, r: 9, fill: 'currentColor', class: 'text-light-surface-container-low dark:text-dark-surface-container-low' }));
+        const wt = createSvgEl('text', { x: mx, y: my + 3.5, 'text-anchor': 'middle', fill: 'currentColor', 'font-size': '10', 'font-family': 'Red Hat Mono, monospace', 'font-weight': '600', class: 'text-light-on-surface-variant dark:text-dark-on-surface-variant' });
+        wt.textContent = e.w;
+        edgesLayer.appendChild(wt);
+      });
+
+      g.nodes.forEach(n => {
+        const isCurrent = snap.currentNode === n.id;
+        const isSettled = settledSet.has(n.id);
+        const distVal = snap.distances[n.id] === null || snap.distances[n.id] === undefined ? '∞' : snap.distances[n.id];
+
+        let nodeClass = 'text-light-surface-container-high dark:text-dark-surface-container-high stroke-light-outline dark:stroke-dark-outline';
+        let txtClass = 'text-light-on-surface dark:text-dark-on-surface';
+        if (isCurrent) { nodeClass = 'text-light-tertiary dark:text-dark-tertiary stroke-light-on-tertiary dark:stroke-dark-on-tertiary'; txtClass = 'text-light-on-tertiary dark:text-dark-on-tertiary'; }
+        else if (isSettled) { nodeClass = 'text-light-secondary dark:text-dark-secondary stroke-light-on-secondary dark:stroke-dark-on-secondary'; txtClass = 'text-light-on-secondary dark:text-dark-on-secondary'; }
+
+        const grp = createSvgEl('g');
+        grp.appendChild(createSvgEl('circle', { cx: n.graphX, cy: n.graphY, r: 16, fill: 'currentColor', 'stroke-width': '2', class: nodeClass }));
+        const t = createSvgEl('text', { x: n.graphX, y: n.graphY + 4, 'text-anchor': 'middle', fill: 'currentColor', 'font-size': '12', 'font-family': 'Red Hat Mono, monospace', 'font-weight': '700', class: txtClass });
+        t.textContent = n.id;
+        const dl = createSvgEl('text', { x: n.graphX, y: n.graphY > 180 ? n.graphY + 27 : n.graphY - 21, 'text-anchor': 'middle', fill: 'currentColor', 'font-size': '10', 'font-family': 'Red Hat Mono, monospace', 'font-weight': '600', class: 'text-light-on-surface-variant dark:text-dark-on-surface-variant' });
+        dl.textContent = `d=${distVal}`;
+        grp.appendChild(t);
+        grp.appendChild(dl);
+        nodesLayer.appendChild(grp);
+      });
+
+      document.getElementById('pq-preview').textContent = `PQ: [${snap.pqPreview}]`;
+    }
+
+    function renderTable(snap) {
+      const g = appState.graph;
+      const tbody = document.getElementById('dijkstra-table-body');
+      const settledSet = new Set(snap.settled || []);
+      tbody.innerHTML = g.nodes.map(n => {
+        const isCurrent = snap.currentNode === n.id;
+        const isRelaxing = snap.relaxingNeighbors.includes(n.id);
+        const isSettled = settledSet.has(n.id);
+        let rowCls = 'transition-colors duration-state-change';
+        if (isCurrent) rowCls += ' bg-light-tertiary-container/15 dark:bg-dark-tertiary-container/25';
+        else if (isRelaxing) rowCls += ' bg-light-primary-container/10 dark:bg-dark-primary-container/20';
+
+        const distVal = snap.distances[n.id];
+        const distStr = distVal === null || distVal === undefined ? 'INF' : String(distVal);
+        const prevStr = snap.predecessors[n.id] || '—';
+        let statusText = '미방문';
+        let statusCls = 'text-light-on-surface-variant dark:text-dark-on-surface-variant';
+        if (isCurrent) { statusText = '현재 탐색 (u)'; statusCls = 'text-light-tertiary dark:text-dark-tertiary'; }
+        else if (isRelaxing) { statusText = '거리 갱신 (Relax)'; statusCls = 'text-light-primary dark:text-dark-primary'; }
+        else if (isSettled) { statusText = '확정 (Settled)'; statusCls = 'text-light-secondary dark:text-dark-secondary'; }
+
+        return `
+          <tr class="${rowCls}">
+            <td class="px-gutter-md py-gutter-sm font-mono text-mono-sm text-light-on-surface dark:text-dark-on-surface">${n.id} (${n.label})</td>
+            <td class="px-gutter-md py-gutter-sm font-mono text-mono-sm tabular-nums text-light-on-surface dark:text-dark-on-surface">${distStr}</td>
+            <td class="px-gutter-md py-gutter-sm font-mono text-mono-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">${prevStr}</td>
+            <td class="px-gutter-md py-gutter-sm font-label text-label-sm ${statusCls}">${statusText}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderStep(idx) {
+      if (!appState.trace.length || !appState.graph) return;
+      const snap = appState.trace[idx];
+      const targetId = appState.graph.target;
+      renderNavigationMap(snap, appState.trace.length - 1);
+      renderGraphTopology(snap);
+      renderTable(snap);
+
+      const opsEl = document.getElementById('metric-ops');
+      opsEl.className = 'font-mono text-mono-lg tabular-nums text-light-on-surface dark:text-dark-on-surface';
+      opsEl.textContent = `${snap.operations} 회`;
+
+      const timeEl = document.getElementById('metric-time');
+      timeEl.className = 'font-mono text-mono-lg tabular-nums text-light-tertiary dark:text-dark-tertiary';
+      timeEl.textContent = `${Number(snap.elapsedMs).toFixed(2)} ms`;
+
+      const costEl = document.getElementById('metric-cost');
+      costEl.className = 'font-mono text-mono-lg tabular-nums text-light-primary dark:text-dark-primary';
+      const tDist = snap.distances[targetId];
+      const settled = (snap.settled || []).includes(targetId);
+      costEl.textContent = tDist === null || tDist === undefined
+        ? 'INF (탐색 중)'
+        : `${tDist} (${settled ? '확정' : '후보'})`;
+
+      syncControls();
+    }
+
+    function stopAnimation() {
+      if (appState.timerId !== null) {
+        clearInterval(appState.timerId);
+        appState.timerId = null;
+      }
+      syncControls();
+    }
+
+    async function startAnimation() {
+      if (!appState.connected || !appState.graph) return;
+      if (appState.timerId !== null) return;
+
+      if (!appState.trace.length) {
+        const startBtn = document.getElementById('btn-start');
+        startBtn.disabled = true;
+        try {
+          const data = await solveDijkstra();
+          appState.trace = data.steps || [];
+          appState.currentStep = 0;
+          if (!appState.trace.length) return;
+          renderStep(0);
+        } catch (err) {
+          applyConnectionUI('error', `실행 오류: ${err.message || err}`);
+          return;
+        }
+      } else if (appState.currentStep >= appState.trace.length - 1) {
+        appState.currentStep = 0;
+        renderStep(0);
+      }
+
+      appState.timerId = setInterval(() => {
+        if (appState.currentStep < appState.trace.length - 1) {
+          appState.currentStep += 1;
+          renderStep(appState.currentStep);
+        } else {
+          stopAnimation();
+        }
+      }, 850);
+      syncControls();
+    }
+
+    // -------------------------------------------------------------------------
+    // Event Listeners & Startup Auto-Check
+    // -------------------------------------------------------------------------
+    document.getElementById('btn-connect').addEventListener('click', connectServer);
+    document.getElementById('btn-disconnect').addEventListener('click', disconnectServer);
+    document.getElementById('btn-toggle-config').addEventListener('click', () => {
+      document.getElementById('server-config-panel').classList.toggle('hidden');
+    });
+    document.getElementById('btn-save-url').addEventListener('click', async () => {
+      const url = document.getElementById('server-url-input').value.trim().replace(/\/+$/, '');
+      if (appState.isGAS) {
+        await callGas('setPythonServerUrl', url);
+      } else {
+        appState.localUrl = url;
+        if (url) sessionStorage.setItem('NAV_PYTHON_SERVER_URL', url);
+        else sessionStorage.removeItem('NAV_PYTHON_SERVER_URL');
+      }
+      await connectServer();
+    });
+    document.getElementById('btn-load-presets').addEventListener('click', loadPresets);
+    document.getElementById('btn-random-graph').addEventListener('click', generateRandomGraph);
+    document.getElementById('preset-select').addEventListener('change', (e) => {
+      stopAnimation();
+      appState.trace = [];
+      appState.currentStep = 0;
+      const found = appState.presets.find(p => p.id === e.target.value);
+      appState.graph = found || null;
+      if (appState.graph) renderGraphPreviewOnly();
+      else renderEmptyState();
+    });
+    document.getElementById('btn-start').addEventListener('click', startAnimation);
+    document.getElementById('btn-pause').addEventListener('click', stopAnimation);
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      stopAnimation();
+      appState.trace = [];
+      appState.currentStep = 0;
+      if (appState.graph) renderGraphPreviewOnly();
+      else renderEmptyState();
+    });
+    document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderEmptyState();
+      if (appState.isGAS) {
+        try {
+          document.getElementById('server-url-input').value = (await callGas('getPythonServerUrl')) || '';
+        } catch (err) {}
+      } else {
+        appState.localUrl = sessionStorage.getItem('NAV_PYTHON_SERVER_URL') || '';
+        document.getElementById('server-url-input').value = appState.localUrl;
+      }
+      await connectServer();
+    });
+  </script>
+</body>
+</html>
