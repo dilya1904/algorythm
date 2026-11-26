@@ -256,6 +256,66 @@ def run_dijkstra(
         candidates.sort(key=lambda item: (item[0], item[1]))
         return ", ".join(f"{nid}:{d}" for d, nid in candidates) if candidates else "Empty"
 
+    def build_step_histogram(
+        current_node: Optional[str],
+        relaxing_neighbors: List[str],
+        shortest_path: List[str],
+    ) -> Dict[str, Any]:
+        """각 단계(Step) 시점의 정점별 최단 거리 d[v] 히스토그램 스냅샷 배열 생성"""
+        finite_vals = [int(d) for d in dist.values() if not math.isinf(d) and d > 0]
+        max_finite = max(finite_vals) if finite_vals else 1
+        relax_set = set(relaxing_neighbors)
+        path_set = set(shortest_path) if len(shortest_path) > 1 else set()
+
+        node_bars: List[Dict[str, Any]] = []
+        frontier_count = 0
+        unvisited_count = 0
+
+        for nid in node_ids:
+            d_val = dist[nid]
+            is_inf = math.isinf(d_val)
+            if nid in path_set:
+                bar_status = "path"
+            elif nid == current_node:
+                bar_status = "current"
+            elif nid in relax_set:
+                bar_status = "relaxing"
+            elif nid in settled:
+                bar_status = "settled"
+            elif not is_inf:
+                bar_status = "frontier"
+                frontier_count += 1
+            else:
+                bar_status = "unvisited"
+                unvisited_count += 1
+
+            height_pct = (
+                100.0
+                if is_inf
+                else (8.0 if d_val == 0 else min(95.0, round((d_val / max_finite) * 85.0 + 10.0, 1)))
+            )
+            node_bars.append(
+                {
+                    "node": nid,
+                    "label": label_map[nid],
+                    "distance": None if is_inf else int(d_val),
+                    "is_inf": is_inf,
+                    "status": bar_status,
+                    "height_pct": height_pct,
+                }
+            )
+
+        return {
+            "node_bars": node_bars,
+            "summary": {
+                "settled_count": len(settled),
+                "frontier_count": frontier_count,
+                "unvisited_count": unvisited_count,
+                "relaxation_ops": ops,
+                "max_finite_distance": max_finite,
+            },
+        }
+
     def make_snapshot(
         current_node: Optional[str],
         relaxing_neighbors: List[str],
@@ -278,6 +338,9 @@ def run_dijkstra(
                 "actionLog": action_log,
                 "pqPreview": format_pq_preview(),
                 "shortestPath": list(shortest_path),
+                "histogram": build_step_histogram(
+                    current_node, relaxing_neighbors, shortest_path
+                ),
                 "time_complexity": {
                     "notation": "O((V + E) log V)",
                     "v_total": v_total,

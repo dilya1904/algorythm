@@ -130,6 +130,9 @@
       stroke-dasharray: 8 4;
       animation: dashFlow 0.9s linear infinite;
     }
+    .histogram-bar {
+      transition: height 220ms cubic-bezier(0.2, 0, 0, 1), background-color 180ms ease;
+    }
     @media (prefers-reduced-motion: reduce) {
       .route-dash-animate { animation: none; }
     }
@@ -326,6 +329,39 @@
           </table>
         </div>
       </article>
+      <!-- 하단 전체 패널: 단계별 최단 거리 히스토그램 & 시간 복잡도 진행률 -->
+      <article class="lg:col-span-12 flex flex-col rounded-md border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container-low dark:bg-dark-surface-container-low overflow-hidden">
+        <header class="flex flex-wrap items-center justify-between gap-gutter-sm px-gutter-lg py-gutter-md border-b border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-container dark:bg-dark-surface-container">
+          <div class="flex items-center gap-gutter-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-light-primary dark:bg-dark-primary"></span>
+            <h2 class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">단계별 최단 거리 d[v] 히스토그램 &amp; 시간 복잡도 진행률</h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-gutter-md">
+            <span id="complexity-badge" class="font-mono text-mono-sm tabular-nums text-light-primary dark:text-dark-primary">O((V + E) log V) · 0%</span>
+            <div class="flex items-center gap-gutter-xs">
+              <span class="font-mono text-mono-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">STEP</span>
+              <input id="step-scrubber" type="range" min="0" max="0" value="0" disabled class="w-28 accent-light-primary dark:accent-dark-primary disabled:opacity-40" />
+            </div>
+          </div>
+        </header>
+
+        <div class="p-gutter-lg bg-light-surface-container-lowest dark:bg-dark-surface-container-lowest flex flex-col gap-gutter-md">
+          <div id="dijkstra-histogram" class="h-36 flex items-end justify-around gap-gutter-md px-gutter-md pt-gutter-lg border-b border-light-outline-variant/60 dark:border-dark-outline-variant/60">
+            <div class="w-full h-full flex items-center justify-center font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+              데이터가 없습니다. 맵 조회 후 [시작]을 눌러 단계별 히스토그램을 확인하세요.
+            </div>
+          </div>
+          <div class="space-y-gutter-xs">
+            <div class="flex items-center justify-between font-mono text-mono-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+              <span>시간 복잡도 진행 상태 (O((V + E) log V))</span>
+              <span id="complexity-detail" class="tabular-nums">데이터 없음</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-light-surface-container-high dark:bg-dark-surface-container-high overflow-hidden">
+              <div id="complexity-progress-bar" class="h-full bg-light-primary dark:bg-dark-primary transition-all duration-step-pulse" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </article>
     </main>
 
     <!-- 하단 메타데이터 요약 카드 3종 (Empty Initial State) -->
@@ -443,6 +479,7 @@
       document.getElementById('btn-start').disabled = !c || !hasGraph || (isRunning && appState.currentStep < appState.trace.length - 1);
       document.getElementById('btn-pause').disabled = !isRunning;
       document.getElementById('btn-reset').disabled = !hasGraph && !hasTrace;
+      document.getElementById('step-scrubber').disabled = !hasTrace;
     }
 
     async function connectServer() {
@@ -595,7 +632,61 @@
       document.getElementById('metric-time').textContent = '데이터 없음';
       document.getElementById('metric-cost').textContent = '데이터 없음';
       document.getElementById('metric-cost-label').textContent = '도착지 최단 비용';
+      resetHistogramEmpty('데이터가 없습니다. 맵 조회 후 [시작]을 눌러 단계별 히스토그램을 확인하세요.');
       syncControls();
+    }
+
+    function resetHistogramEmpty(msg) {
+      document.getElementById('dijkstra-histogram').innerHTML =
+        `<div class="w-full h-full flex items-center justify-center font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">${msg}</div>`;
+      document.getElementById('complexity-badge').textContent = 'O((V + E) log V) · 0%';
+      document.getElementById('complexity-detail').textContent = '데이터 없음';
+      document.getElementById('complexity-progress-bar').style.width = '0%';
+      const scrubber = document.getElementById('step-scrubber');
+      scrubber.max = 0;
+      scrubber.value = 0;
+    }
+
+    function renderHistogram(snap) {
+      const container = document.getElementById('dijkstra-histogram');
+      const bars = snap.histogram && Array.isArray(snap.histogram.node_bars) ? snap.histogram.node_bars : [];
+      if (!bars.length) {
+        resetHistogramEmpty('히스토그램 데이터가 없습니다.');
+        return;
+      }
+
+      const colorForStatus = (status) => {
+        if (status === 'path') return 'bg-light-primary dark:bg-dark-primary';
+        if (status === 'current') return 'bg-light-tertiary dark:bg-dark-tertiary';
+        if (status === 'relaxing') return 'bg-light-primary-container dark:bg-dark-primary-container';
+        if (status === 'settled') return 'bg-light-secondary dark:bg-dark-secondary';
+        if (status === 'frontier') return 'bg-light-secondary-container dark:bg-dark-secondary-container';
+        return 'bg-light-outline-variant/60 dark:bg-dark-outline-variant/60 border border-dashed border-light-outline dark:border-dark-outline';
+      };
+
+      container.innerHTML = bars.map(b => {
+        const valText = b.is_inf ? 'INF' : String(b.distance);
+        return `
+          <div class="flex-1 h-full flex flex-col items-center justify-end gap-gutter-xs max-w-[92px]">
+            <span class="font-mono text-mono-sm tabular-nums ${b.is_inf ? 'text-light-outline dark:text-dark-outline' : 'text-light-on-surface dark:text-dark-on-surface'}">${valText}</span>
+            <div class="w-full flex-1 flex items-end justify-center">
+              <div class="histogram-bar w-full max-w-[44px] rounded-t ${colorForStatus(b.status)}" style="height: ${Math.max(8, b.height_pct)}%" title="${b.node}(${b.label}): d=${valText} [${b.status}]"></div>
+            </div>
+            <div class="text-center leading-tight">
+              <div class="font-mono text-mono-sm font-semibold text-light-on-surface dark:text-dark-on-surface">${b.node}</div>
+              <div class="font-body text-[10px] text-light-on-surface-variant dark:text-dark-on-surface-variant truncate max-w-[72px]">${b.label}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const tc = snap.time_complexity;
+      if (tc) {
+        document.getElementById('complexity-badge').textContent = `${tc.notation} · ${tc.progress_pct}%`;
+        document.getElementById('complexity-detail').textContent =
+          `확정 정점 ${tc.v_settled}/${tc.v_total} · 완화 연산 ${tc.relaxation_ops}회 · 간선 |E|=${tc.e_total}`;
+        document.getElementById('complexity-progress-bar').style.width = `${tc.progress_pct}%`;
+      }
     }
 
     function renderGraphPreviewOnly() {
@@ -633,6 +724,7 @@
       document.getElementById('metric-ops').textContent = '실행 대기';
       document.getElementById('metric-time').textContent = '실행 대기';
       document.getElementById('metric-cost').textContent = '실행 대기';
+      resetHistogramEmpty('[시작] 버튼을 눌러 단계별 최단 거리 히스토그램을 실행하세요.');
       syncControls();
     }
 
@@ -821,6 +913,11 @@
       renderNavigationMap(snap, appState.trace.length - 1);
       renderGraphTopology(snap);
       renderTable(snap);
+      renderHistogram(snap);
+
+      const scrubber = document.getElementById('step-scrubber');
+      scrubber.max = Math.max(0, appState.trace.length - 1);
+      scrubber.value = idx;
 
       const opsEl = document.getElementById('metric-ops');
       opsEl.className = 'font-mono text-mono-lg tabular-nums text-light-on-surface dark:text-dark-on-surface';
@@ -924,6 +1021,11 @@
     document.getElementById('btn-theme-toggle').addEventListener('click', () => {
       const isDark = document.documentElement.classList.toggle('dark');
       document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
+    });
+    document.getElementById('step-scrubber').addEventListener('input', (e) => {
+      stopAnimation();
+      appState.currentStep = Number(e.target.value);
+      renderStep(appState.currentStep);
     });
 
     document.addEventListener('DOMContentLoaded', async () => {

@@ -40,6 +40,14 @@ def test_presets_and_solve():
         assert data["summary"]["found"] is True
         assert data["summary"]["shortest_cost"] > 0
         assert len(data["steps"]) >= 2
+        for snap in data["steps"]:
+            assert "elapsedMs" in snap
+            assert "time_complexity" in snap
+            assert snap["time_complexity"]["notation"] == "O((V + E) log V)"
+            assert 0.0 <= snap["time_complexity"]["progress_pct"] <= 100.0
+            assert "histogram" in snap
+            assert len(snap["histogram"]["node_bars"]) == p["node_count"]
+            assert "summary" in snap["histogram"]
         print(
             f"[{p['id']}] Path={'->'.join(data['summary']['shortest_path'])} "
             f"cost={data['summary']['shortest_cost']} ops={data['summary']['operations']}"
